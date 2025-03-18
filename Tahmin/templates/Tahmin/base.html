@@ -1,0 +1,188 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Hisse Tahmin</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+</head>
+<body class="bg-gray-100">
+
+    <!-- Navbar -->
+    <nav class="bg-blue-600 p-4 shadow-lg flex justify-between items-center">
+        <div class="text-white text-lg font-semibold">
+            <a href="/" class="hover:underline">Hisse Tahmin</a>
+        </div>
+        <div>
+            <a href="/register" class="bg-white text-blue-600 px-4 py-2 rounded-lg shadow-md hover:bg-gray-200 mr-2 inline-block">
+                Kayıt Ol
+            </a>
+            <button id="loginBtn" class="bg-white text-blue-600 px-4 py-2 rounded-lg shadow-md hover:bg-gray-200">
+                Giriş Yap
+            </button>
+        </div>
+    </nav>
+
+    <!-- Mesajlar -->
+    {% if messages %}
+    <div class="fixed inset-0 flex items-center justify-center z-50">
+        <!-- Arkaplan overlay -->
+        <div class="absolute inset-0 bg-black bg-opacity-50"></div>
+        
+        {% for message in messages %}
+        <div class="{% if message.tags == 'error' %}bg-white border-l-4 border-red-500{% else %}bg-white border-l-4 border-green-500{% endif %} rounded-lg shadow-2xl p-6 max-w-md w-full mx-4 relative z-50 transform transition-all duration-300 ease-in-out" role="alert">
+            <!-- İkon ve Mesaj -->
+            <div class="flex items-center">
+                {% if message.tags == 'error' %}
+                <div class="text-red-500">
+                    <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+                    </svg>
+                </div>
+                {% else %}
+                <div class="text-green-500">
+                    <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+                    </svg>
+                </div>
+                {% endif %}
+                
+                <div class="ml-3">
+                    <h3 class="text-lg font-medium {% if message.tags == 'error' %}text-red-800{% else %}text-green-800{% endif %}">
+                        {% if message.tags == 'error' %}Hata!{% else %}Başarılı!{% endif %}
+                    </h3>
+                    <div class="mt-2 text-sm {% if message.tags == 'error' %}text-red-700{% else %}text-green-700{% endif %}">
+                        {{ message }}
+                    </div>
+                </div>
+            </div>
+
+            <!-- Butonlar -->
+            <div class="mt-4 flex justify-end">
+                <button class="close-message px-4 py-2 bg-gray-100 text-gray-700 rounded-lg hover:bg-gray-200 focus:outline-none focus:ring-2 focus:ring-gray-400 transition-colors duration-200">
+                    Tamam
+                </button>
+            </div>
+        </div>
+        {% endfor %}
+    </div>
+    {% endif %}
+
+    <!-- İçerik -->
+    <div class="container mx-auto mt-10 p-6">
+        {% block content %}{% endblock %}
+    </div>
+
+    <!-- Giriş Yap Modalı -->
+    <div id="loginModal" class="hidden fixed inset-0 bg-gray-900 bg-opacity-50 flex justify-center items-center z-50">
+        <div class="bg-white p-8 rounded-lg shadow-xl w-96 relative transform transition-all duration-300">
+            <h2 class="text-2xl font-bold text-center text-blue-600 mb-6">Giriş Yap</h2>
+
+            <form method="POST" action="{% url 'login' %}">
+                {% csrf_token %}
+                <div class="mb-4">
+                    <label class="block text-gray-700 mb-2">Kullanıcı Adı</label>
+                    <input type="text" name="username" required 
+                           class="w-full px-4 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-400">
+                </div>
+
+                <div class="mb-6">
+                    <label class="block text-gray-700 mb-2">Şifre</label>
+                    <input type="password" name="password" required 
+                           class="w-full px-4 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-400">
+                </div>
+
+                <button type="submit" 
+                        class="w-full bg-blue-600 text-white py-3 rounded-lg hover:bg-blue-700 transition-colors duration-200">
+                    Giriş Yap
+                </button>
+            </form>
+
+            <button id="closeModal" class="absolute top-4 right-4 text-gray-500 hover:text-gray-700">
+                <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
+                </svg>
+            </button>
+
+            <div class="mt-4 text-center">
+                <p class="text-gray-600">Hesabınız yok mu? 
+                    <a href="{% url 'register' %}" class="text-blue-600 hover:underline">Kayıt Ol</a>
+                </p>
+            </div>
+        </div>
+    </div>
+
+    <!-- Mesajları kapatmak için JavaScript -->
+    <script>
+        document.addEventListener('DOMContentLoaded', function() {
+            // Mesaj kapatma düğmelerini seç
+            const closeButtons = document.querySelectorAll('.close-message');
+            
+            // Her düğmeye tıklama olayı ekle
+            closeButtons.forEach(button => {
+                button.addEventListener('click', function() {
+                    const alertContainer = this.closest('[role="alert"]').parentElement;
+                    alertContainer.style.opacity = '0';
+                    setTimeout(() => {
+                        alertContainer.style.display = 'none';
+                    }, 300);
+                });
+            });
+
+            // Mesajları 5 saniye sonra otomatik kapat
+            const messages = document.querySelectorAll('[role="alert"]');
+            messages.forEach(message => {
+                setTimeout(() => {
+                    const container = message.parentElement;
+                    container.style.opacity = '0';
+                    setTimeout(() => {
+                        container.style.display = 'none';
+                    }, 300);
+                }, 5000);
+            });
+
+            // Overlay'e tıklandığında mesajı kapat
+            const overlays = document.querySelectorAll('.bg-black.bg-opacity-50');
+            overlays.forEach(overlay => {
+                overlay.addEventListener('click', function() {
+                    const container = this.parentElement;
+                    container.style.opacity = '0';
+                    setTimeout(() => {
+                        container.style.display = 'none';
+                    }, 300);
+                });
+            });
+        });
+
+        const loginModal = document.getElementById("loginModal");
+        const loginBtn = document.getElementById("loginBtn");
+        const closeModal = document.getElementById("closeModal");
+
+        loginBtn.addEventListener("click", function() {
+            loginModal.classList.remove("hidden");
+            // Modal açılırken animasyon
+            const modalContent = loginModal.querySelector('div');
+            modalContent.classList.add('scale-100');
+            modalContent.classList.remove('scale-95');
+        });
+
+        closeModal.addEventListener("click", function() {
+            // Modal kapanırken animasyon
+            const modalContent = loginModal.querySelector('div');
+            modalContent.classList.add('scale-95');
+            modalContent.classList.remove('scale-100');
+            setTimeout(() => {
+                loginModal.classList.add("hidden");
+            }, 200);
+        });
+
+        // Modal dışına tıklandığında kapatma
+        loginModal.addEventListener("click", function(e) {
+            if (e.target === loginModal) {
+                closeModal.click();
+            }
+        });
+    </script>
+
+</body>
+</html>
