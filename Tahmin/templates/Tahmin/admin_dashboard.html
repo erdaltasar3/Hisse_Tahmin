@@ -70,7 +70,7 @@
                 </div>
                 <div class="ml-4">
                     <h3 class="text-sm font-semibold text-gray-700">Toplam Hisse</h3>
-                    <p class="text-2xl font-bold text-purple-600">{{ total_stocks|default:"0" }}</p>
+                    <p class="text-2xl font-bold text-purple-600">{{ total_stocks }}</p>
                 </div>
             </div>
         </div>
@@ -132,9 +132,9 @@
                     <h3 class="text-lg font-semibold mb-2">Hisseler</h3>
                     <p class="text-sm text-amber-100">Hisseleri yönet</p>
                 </div>
-                <button class="mt-4 bg-white text-amber-600 px-4 py-2 rounded-lg hover:bg-amber-50 transition-colors duration-200 w-full text-sm font-medium">
+                <a href="{% url 'stock_management' %}" class="mt-4 bg-white text-amber-600 px-4 py-2 rounded-lg hover:bg-amber-50 transition-colors duration-200 w-full text-sm font-medium text-center">
                     Düzenle
-                </button>
+                </a>
             </div>
         </div>
     </div>
