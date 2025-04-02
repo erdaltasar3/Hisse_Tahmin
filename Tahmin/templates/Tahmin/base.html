@@ -13,25 +13,46 @@
         <div class="text-white text-lg font-semibold">
             <a href="/" class="hover:underline">Hisse Tahmin</a>
         </div>
-        <div>
-            <a href="/register" class="bg-white text-blue-600 px-4 py-2 rounded-lg shadow-md hover:bg-gray-200 mr-2 inline-block">
-                Kayıt Ol
+        <div class="flex items-center space-x-4">
+            <a href="#" class="bg-white text-blue-600 px-4 py-2 rounded-lg shadow-md hover:bg-gray-200">
+                İşlemler
             </a>
-            <button id="loginBtn" class="bg-white text-blue-600 px-4 py-2 rounded-lg shadow-md hover:bg-gray-200">
-                Giriş Yap
-            </button>
+
+            {% if user.is_authenticated %}
+                <!-- Kullanıcı Dropdown -->
+                <div class="relative" id="userDropdown">
+                    <button class="bg-white text-blue-600 px-4 py-2 rounded-lg shadow-md hover:bg-gray-200 flex items-center" id="userMenuBtn">
+                        {{ user.username }}
+                        <svg class="w-4 h-4 ml-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"></path>
+                        </svg>
+                    </button>
+                    <div class="hidden absolute right-0 mt-2 w-48 bg-white rounded-lg shadow-xl z-50" id="userMenu">
+                        <a href="#" class="block px-4 py-2 text-gray-800 hover:bg-blue-50">Profilim</a>
+                        <hr class="my-1">
+                        <form method="post" action="{% url 'logout' %}">
+                            {% csrf_token %}
+                            <button type="submit" class="block w-full text-left px-4 py-2 text-red-600 hover:bg-red-50">Çıkış Yap</button>
+                        </form>
+                    </div>
+                </div>
+            {% else %}
+                <a href="{% url 'register' %}" class="bg-white text-blue-600 px-4 py-2 rounded-lg shadow-md hover:bg-gray-200">
+                    Kayıt Ol
+                </a>
+                <button id="loginBtn" class="bg-white text-blue-600 px-4 py-2 rounded-lg shadow-md hover:bg-gray-200">
+                    Giriş Yap
+                </button>
+            {% endif %}
         </div>
     </nav>
 
     <!-- Mesajlar -->
     {% if messages %}
     <div class="fixed inset-0 flex items-center justify-center z-50">
-        <!-- Arkaplan overlay -->
         <div class="absolute inset-0 bg-black bg-opacity-50"></div>
-        
         {% for message in messages %}
-        <div class="{% if message.tags == 'error' %}bg-white border-l-4 border-red-500{% else %}bg-white border-l-4 border-green-500{% endif %} rounded-lg shadow-2xl p-6 max-w-md w-full mx-4 relative z-50 transform transition-all duration-300 ease-in-out" role="alert">
-            <!-- İkon ve Mesaj -->
+        <div class="{% if message.tags == 'error' %}bg-white border-l-4 border-red-500{% else %}bg-white border-l-4 border-green-500{% endif %} rounded-lg shadow-2xl p-6 max-w-md w-full mx-4 relative z-50" role="alert">
             <div class="flex items-center">
                 {% if message.tags == 'error' %}
                 <div class="text-red-500">
@@ -46,23 +67,15 @@
                     </svg>
                 </div>
                 {% endif %}
-                
                 <div class="ml-3">
-                    <h3 class="text-lg font-medium {% if message.tags == 'error' %}text-red-800{% else %}text-green-800{% endif %}">
-                        {% if message.tags == 'error' %}Hata!{% else %}Başarılı!{% endif %}
-                    </h3>
-                    <div class="mt-2 text-sm {% if message.tags == 'error' %}text-red-700{% else %}text-green-700{% endif %}">
-                        {{ message }}
-                    </div>
+                    <p class="text-sm text-gray-700">{{ message }}</p>
                 </div>
             </div>
-
-            <!-- Butonlar -->
-            <div class="mt-4 flex justify-end">
-                <button class="close-message px-4 py-2 bg-gray-100 text-gray-700 rounded-lg hover:bg-gray-200 focus:outline-none focus:ring-2 focus:ring-gray-400 transition-colors duration-200">
-                    Tamam
-                </button>
-            </div>
+            <button class="close-message absolute top-4 right-4 text-gray-400 hover:text-gray-600">
+                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
+                </svg>
+            </button>
         </div>
         {% endfor %}
     </div>
@@ -74,10 +87,11 @@
     </div>
 
     <!-- Giriş Yap Modalı -->
+    {% if not user.is_authenticated %}
     <div id="loginModal" class="hidden fixed inset-0 bg-gray-900 bg-opacity-50 flex justify-center items-center z-50">
-        <div class="bg-white p-8 rounded-lg shadow-xl w-96 relative transform transition-all duration-300">
+        <div class="bg-white p-8 rounded-lg shadow-xl w-96 relative">
             <h2 class="text-2xl font-bold text-center text-blue-600 mb-6">Giriş Yap</h2>
-
+            
             <form method="POST" action="{% url 'login' %}">
                 {% csrf_token %}
                 <div class="mb-4">
@@ -93,7 +107,7 @@
                 </div>
 
                 <button type="submit" 
-                        class="w-full bg-blue-600 text-white py-3 rounded-lg hover:bg-blue-700 transition-colors duration-200">
+                        class="w-full bg-blue-600 text-white py-3 rounded-lg hover:bg-blue-700 transition-colors">
                     Giriş Yap
                 </button>
             </form>
@@ -103,84 +117,75 @@
                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
                 </svg>
             </button>
-
-            <div class="mt-4 text-center">
-                <p class="text-gray-600">Hesabınız yok mu? 
-                    <a href="{% url 'register' %}" class="text-blue-600 hover:underline">Kayıt Ol</a>
-                </p>
-            </div>
         </div>
     </div>
+    {% endif %}
 
-    <!-- Mesajları kapatmak için JavaScript -->
+    <!-- JavaScript -->
     <script>
-        document.addEventListener('DOMContentLoaded', function() {
-            // Mesaj kapatma düğmelerini seç
-            const closeButtons = document.querySelectorAll('.close-message');
-            
-            // Her düğmeye tıklama olayı ekle
-            closeButtons.forEach(button => {
-                button.addEventListener('click', function() {
-                    const alertContainer = this.closest('[role="alert"]').parentElement;
-                    alertContainer.style.opacity = '0';
-                    setTimeout(() => {
-                        alertContainer.style.display = 'none';
-                    }, 300);
-                });
+        // Modal işlemleri
+        const loginModal = document.getElementById('loginModal');
+        const loginBtn = document.getElementById('loginBtn');
+        const closeModal = document.getElementById('closeModal');
+
+        if (loginBtn && loginModal && closeModal) {
+            // Giriş yap butonuna tıklandığında
+            loginBtn.addEventListener('click', function() {
+                loginModal.classList.remove('hidden');
             });
 
-            // Mesajları 5 saniye sonra otomatik kapat
+            // Kapat butonuna tıklandığında
+            closeModal.addEventListener('click', function() {
+                loginModal.classList.add('hidden');
+            });
+
+            // Modal dışına tıklandığında
+            loginModal.addEventListener('click', function(e) {
+                if (e.target === loginModal) {
+                    loginModal.classList.add('hidden');
+                }
+            });
+        }
+
+        // Kullanıcı menüsü işlemleri
+        const userMenuBtn = document.getElementById('userMenuBtn');
+        const userMenu = document.getElementById('userMenu');
+
+        if (userMenuBtn && userMenu) {
+            userMenuBtn.addEventListener('click', function() {
+                userMenu.classList.toggle('hidden');
+            });
+
+            // Menü dışına tıklandığında menüyü kapat
+            document.addEventListener('click', function(e) {
+                if (!userMenuBtn.contains(e.target) && !userMenu.contains(e.target)) {
+                    userMenu.classList.add('hidden');
+                }
+            });
+        }
+
+        // Mesaj kapatma işlemleri
+        document.addEventListener('DOMContentLoaded', function() {
             const messages = document.querySelectorAll('[role="alert"]');
             messages.forEach(message => {
                 setTimeout(() => {
-                    const container = message.parentElement;
-                    container.style.opacity = '0';
+                    message.style.opacity = '0';
                     setTimeout(() => {
-                        container.style.display = 'none';
+                        message.style.display = 'none';
                     }, 300);
-                }, 5000);
+                }, 2000);
             });
 
-            // Overlay'e tıklandığında mesajı kapat
-            const overlays = document.querySelectorAll('.bg-black.bg-opacity-50');
-            overlays.forEach(overlay => {
-                overlay.addEventListener('click', function() {
-                    const container = this.parentElement;
-                    container.style.opacity = '0';
+            const closeButtons = document.querySelectorAll('.close-message');
+            closeButtons.forEach(button => {
+                button.addEventListener('click', function() {
+                    const message = this.closest('[role="alert"]');
+                    message.style.opacity = '0';
                     setTimeout(() => {
-                        container.style.display = 'none';
+                        message.style.display = 'none';
                     }, 300);
                 });
             });
-        });
-
-        const loginModal = document.getElementById("loginModal");
-        const loginBtn = document.getElementById("loginBtn");
-        const closeModal = document.getElementById("closeModal");
-
-        loginBtn.addEventListener("click", function() {
-            loginModal.classList.remove("hidden");
-            // Modal açılırken animasyon
-            const modalContent = loginModal.querySelector('div');
-            modalContent.classList.add('scale-100');
-            modalContent.classList.remove('scale-95');
-        });
-
-        closeModal.addEventListener("click", function() {
-            // Modal kapanırken animasyon
-            const modalContent = loginModal.querySelector('div');
-            modalContent.classList.add('scale-95');
-            modalContent.classList.remove('scale-100');
-            setTimeout(() => {
-                loginModal.classList.add("hidden");
-            }, 200);
-        });
-
-        // Modal dışına tıklandığında kapatma
-        loginModal.addEventListener("click", function(e) {
-            if (e.target === loginModal) {
-                closeModal.click();
-            }
         });
     </script>
 
