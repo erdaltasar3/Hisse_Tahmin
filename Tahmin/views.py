@@ -9,6 +9,12 @@ from django.contrib.auth.views import LoginView
 from .models import Stock, StockPrice, StockAnalysis
 from django.urls import reverse
 from django.http import JsonResponse
+from django.template.loader import render_to_string
+import pandas as pd
+from django.core.exceptions import ValidationError
+import os
+from django.conf import settings
+import json
 
 # Create your views here.
 
@@ -144,6 +150,276 @@ def toggle_stock_status(request, stock_id):
             return JsonResponse({'success': True})
         return redirect('stock_management')
     return redirect('stock_management')
+
+@login_required
+@user_passes_test(is_staff_user)
+def add_stock_price(request, stock_id):
+    stock = get_object_or_404(Stock, id=stock_id)
+    
+    if request.method == 'POST':
+        try:
+            date = request.POST.get('date')
+            
+            # Tüm mevcut mesajları temizle
+            messages.get_messages(request).used = True
+            
+            # Aynı tarih için kayıt var mı kontrol et
+            if StockPrice.objects.filter(stock=stock, date=date).exists():
+                messages.error(request, f'{date} tarihi için fiyat verisi zaten mevcut.')
+                return redirect('add_stock_price', stock_id=stock_id)
+            
+            opening_price = request.POST.get('opening_price')
+            closing_price = request.POST.get('closing_price')
+            highest_price = request.POST.get('highest_price')
+            lowest_price = request.POST.get('lowest_price')
+            volume = request.POST.get('volume')
+            
+            # Günlük değişim yüzdesini hesapla
+            daily_change = ((float(closing_price) - float(opening_price)) / float(opening_price)) * 100
+            
+            StockPrice.objects.create(
+                stock=stock,
+                date=date,
+                opening_price=opening_price,
+                closing_price=closing_price,
+                highest_price=highest_price,
+                lowest_price=lowest_price,
+                volume=volume,
+                daily_change=daily_change
+            )
+            return redirect('stock_management')
+            
+        except Exception as e:
+            messages.error(request, f'Hata oluştu: {str(e)}')
+            return redirect('add_stock_price', stock_id=stock_id)
+    
+    # GET isteği için tüm mesajları temizle
+    messages.get_messages(request).used = True
+    
+    context = {
+        'stock': stock,
+        'today': timezone.now().date().isoformat()
+    }
+    return render(request, 'Tahmin/add_stock_price.html', context)
+
+@login_required
+def bulk_add_stock_prices(request):
+    stocks = Stock.objects.all().order_by('symbol')
+    context = {
+        'stocks': stocks,
+    }
+    return render(request, 'Tahmin/bulk_add_stock_prices.html', context)
+
+@login_required
+def add_stock_price_api(request):
+    if request.method == 'POST':
+        stock_id = request.POST.get('stock_id')
+        date = request.POST.get('date')
+        
+        # Aynı tarihte kayıt var mı kontrol et
+        if StockPrice.objects.filter(stock_id=stock_id, date=date).exists():
+            return JsonResponse({
+                'success': False,
+                'error': f"{date} tarihinde zaten bir kayıt mevcut!"
+            })
+        
+        try:
+            stock = Stock.objects.get(id=stock_id)
+            
+            # Günlük değişim yüzdesini hesapla
+            opening = float(request.POST.get('opening_price'))
+            closing = float(request.POST.get('closing_price'))
+            daily_change = ((closing - opening) / opening) * 100
+            
+            StockPrice.objects.create(
+                stock=stock,
+                date=date,
+                opening_price=request.POST.get('opening_price'),
+                closing_price=request.POST.get('closing_price'),
+                highest_price=request.POST.get('highest_price'),
+                lowest_price=request.POST.get('lowest_price'),
+                volume=request.POST.get('volume'),
+                daily_change=daily_change
+            )
+            return JsonResponse({'success': True})
+            
+        except Exception as e:
+            return JsonResponse({
+                'success': False,
+                'error': str(e)
+            })
+    
+    return JsonResponse({
+        'success': False,
+        'error': 'Geçersiz istek metodu'
+    })
+
+@login_required
+@user_passes_test(is_staff_user)
+def upload_stock_data(request):
+    if request.method == 'POST':
+        try:
+            stock_id = request.POST.get('stock_id')
+            stock = get_object_or_404(Stock, id=stock_id)
+            file = request.FILES.get('file')
+            
+            if not file:
+                return JsonResponse({
+                    'success': False,
+                    'error': 'Dosya yüklenmedi!'
+                })
+            
+            # Dosya uzantısını kontrol et
+            file_extension = file.name.split('.')[-1].lower()
+            if file_extension not in ['csv', 'xlsx']:
+                return JsonResponse({
+                    'success': False,
+                    'error': 'Sadece CSV ve Excel dosyaları desteklenmektedir!'
+                })
+            
+            # Dosyayı kaydet
+            try:
+                # Ana dizini oluştur
+                base_upload_dir = os.path.join('uploads', 'stock_data')
+                if not os.path.exists(base_upload_dir):
+                    os.makedirs(base_upload_dir)
+                
+                # Hisse için özel klasör oluştur
+                stock_upload_dir = os.path.join(base_upload_dir, stock.symbol)
+                if not os.path.exists(stock_upload_dir):
+                    os.makedirs(stock_upload_dir)
+                
+                # Dosya adını oluştur: YYYY-MM-DD_HHMMSS.extension
+                timestamp = timezone.now().strftime('%Y-%m-%d_%H%M%S')
+                filename = f"{timestamp}.{file_extension}"
+                
+                # Dosya yolunu oluştur
+                file_path = os.path.join(stock_upload_dir, filename)
+                
+                # Dosyayı kaydet
+                with open(file_path, 'wb+') as destination:
+                    for chunk in file.chunks():
+                        destination.write(chunk)
+                
+                return JsonResponse({
+                    'success': True,
+                    'message': f'Dosya başarıyla yüklendi: {filename}',
+                    'file_path': file_path
+                })
+                    
+            except Exception as e:
+                return JsonResponse({
+                    'success': False,
+                    'error': f'Dosya kaydetme hatası: {str(e)}'
+                })
+            
+        except Exception as e:
+            return JsonResponse({
+                'success': False,
+                'error': str(e)
+            })
+    
+    return JsonResponse({
+        'success': False,
+        'error': 'Geçersiz istek metodu'
+    })
+
+@login_required
+@user_passes_test(is_staff_user)
+def process_stock_data(request):
+    if request.method == 'POST':
+        try:
+            data = json.loads(request.body)
+            file_path = data.get('file_path')
+            stock_id = data.get('stock_id')
+            
+            if not file_path or not stock_id:
+                return JsonResponse({
+                    'success': False,
+                    'error': 'Gerekli parametreler eksik!'
+                })
+            
+            if not os.path.exists(file_path):
+                return JsonResponse({
+                    'success': False,
+                    'error': 'Dosya bulunamadı!'
+                })
+            
+            stock = get_object_or_404(Stock, id=stock_id)
+            
+            try:
+                # CSV dosyasını oku
+                df = pd.read_csv(file_path, 
+                               encoding='utf-8',
+                               thousands='.',  # Binlik ayracı
+                               decimal=',',    # Ondalık ayracı
+                               header=None,    # Başlık satırı yok
+                               names=['date', 'opening_price', 'closing_price', 'highest_price', 'lowest_price', 'volume', 'change'])
+                
+                # Tarih sütununu düzenle
+                df['date'] = pd.to_datetime(df['date'], format='%d.%m.%Y')
+                
+                # Hacim sütunundaki 'M' harfini temizle ve sayıya çevir
+                df['volume'] = df['volume'].str.replace('M', '').astype(float) * 1_000_000
+                
+                # Fiyat sütunlarındaki tırnak işaretlerini temizle
+                price_columns = ['opening_price', 'closing_price', 'highest_price', 'lowest_price']
+                for col in price_columns:
+                    df[col] = df[col].str.replace('"', '')
+                
+                success_count = 0
+                error_count = 0
+                
+                for _, row in df.iterrows():
+                    try:
+                        # Aynı tarihte kayıt var mı kontrol et
+                        if StockPrice.objects.filter(stock=stock, date=row['date'].date()).exists():
+                            error_count += 1
+                            continue
+                        
+                        # Veriyi kaydet
+                        StockPrice.objects.create(
+                            stock=stock,
+                            date=row['date'].date(),
+                            opening_price=float(row['opening_price']),
+                            closing_price=float(row['closing_price']),
+                            highest_price=float(row['highest_price']),
+                            lowest_price=float(row['lowest_price']),
+                            volume=int(row['volume']),
+                            daily_change=float(row['change'].str.replace('%', ''))
+                        )
+                        success_count += 1
+                        
+                    except Exception as e:
+                        error_count += 1
+                        continue
+                
+                # İşlem tamamlandıktan sonra dosyayı sil
+                os.remove(file_path)
+                
+                return JsonResponse({
+                    'success': True,
+                    'message': f'{success_count} kayıt başarıyla eklendi. {error_count} kayıt eklenemedi.'
+                })
+                
+            except Exception as e:
+                # Hata durumunda dosyayı sil
+                os.remove(file_path)
+                return JsonResponse({
+                    'success': False,
+                    'error': f'Veri işleme hatası: {str(e)}'
+                })
+            
+        except Exception as e:
+            return JsonResponse({
+                'success': False,
+                'error': str(e)
+            })
+    
+    return JsonResponse({
+        'success': False,
+        'error': 'Geçersiz istek metodu'
+    })
 
 
 

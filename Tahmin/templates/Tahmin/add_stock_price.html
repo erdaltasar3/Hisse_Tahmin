@@ -1,0 +1,125 @@
+{% extends 'Tahmin/admin_base.html' %}
+
+{% block content %}
+<div class="container mx-auto px-4 py-6">
+    <!-- Tek Mesaj Gösterimi -->
+    {% if messages %}
+        {% with messages|first as message %}
+            {% if message.tags == 'error' %}
+            <div id="notification" class="fixed top-4 right-4 z-50 max-w-md bg-white rounded-lg shadow-xl transform transition-all duration-300 opacity-0 translate-x-full">
+                <div class="p-4 flex items-center space-x-4">
+                    <div class="flex-shrink-0">
+                        <div class="w-8 h-8 bg-red-100 rounded-full flex items-center justify-center">
+                            <svg class="w-5 h-5 text-red-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
+                            </svg>
+                        </div>
+                    </div>
+                    <div class="flex-1">
+                        <p class="text-sm font-medium text-red-800">{{ message }}</p>
+                    </div>
+                    <button onclick="hideNotification()" class="flex-shrink-0 text-gray-400 hover:text-gray-500">
+                        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
+                        </svg>
+                    </button>
+                </div>
+            </div>
+            {% endif %}
+        {% endwith %}
+    {% endif %}
+
+    <div class="max-w-2xl mx-auto bg-white rounded-lg shadow-md p-6">
+        <div class="flex justify-between items-center mb-6">
+            <h2 class="text-2xl font-bold text-gray-800">{{ stock.symbol }} - Fiyat Verisi Ekle</h2>
+            <a href="{% url 'stock_management' %}" class="text-blue-600 hover:text-blue-800">
+                <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
+                </svg>
+            </a>
+        </div>
+
+        <form method="POST" class="space-y-4">
+            {% csrf_token %}
+            
+            <div>
+                <label for="date" class="block text-sm font-medium text-gray-700">Tarih</label>
+                <input type="date" name="date" id="date" value="{{ today }}" required
+                    class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500">
+            </div>
+
+            <div class="grid grid-cols-2 gap-4">
+                <div>
+                    <label for="opening_price" class="block text-sm font-medium text-gray-700">Açılış Fiyatı</label>
+                    <input type="number" step="0.01" name="opening_price" id="opening_price" required
+                        class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500">
+                </div>
+
+                <div>
+                    <label for="closing_price" class="block text-sm font-medium text-gray-700">Kapanış Fiyatı</label>
+                    <input type="number" step="0.01" name="closing_price" id="closing_price" required
+                        class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500">
+                </div>
+
+                <div>
+                    <label for="highest_price" class="block text-sm font-medium text-gray-700">En Yüksek Fiyat</label>
+                    <input type="number" step="0.01" name="highest_price" id="highest_price" required
+                        class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500">
+                </div>
+
+                <div>
+                    <label for="lowest_price" class="block text-sm font-medium text-gray-700">En Düşük Fiyat</label>
+                    <input type="number" step="0.01" name="lowest_price" id="lowest_price" required
+                        class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500">
+                </div>
+            </div>
+
+            <div>
+                <label for="volume" class="block text-sm font-medium text-gray-700">İşlem Hacmi</label>
+                <input type="number" name="volume" id="volume" required
+                    class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500">
+            </div>
+
+            <div class="flex justify-end space-x-3 mt-6">
+                <a href="{% url 'stock_management' %}" 
+                    class="px-4 py-2 border border-gray-300 rounded-md text-sm font-medium text-gray-700 hover:bg-gray-50">
+                    İptal
+                </a>
+                <button type="submit" 
+                    class="px-4 py-2 bg-blue-600 border border-transparent rounded-md text-sm font-medium text-white hover:bg-blue-700">
+                    Kaydet
+                </button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<script>
+    function hideNotification() {
+        const notification = document.getElementById('notification');
+        if (notification) {
+            notification.style.opacity = '0';
+            notification.style.transform = 'translateX(100%)';
+            setTimeout(() => {
+                notification.remove();
+            }, 300);
+        }
+    }
+
+    document.addEventListener('DOMContentLoaded', function() {
+        const notification = document.getElementById('notification');
+        if (notification) {
+            // Mesajı göster
+            setTimeout(() => {
+                notification.style.opacity = '1';
+                notification.style.transform = 'translateX(0)';
+            }, 100);
+
+            // 3 saniye sonra otomatik kapat
+            setTimeout(() => {
+                hideNotification();
+            }, 3000);
+        }
+    });
+</script>
+{% endblock %} 

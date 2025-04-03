@@ -1,107 +1,78 @@
 {% extends 'Tahmin/admin_base.html' %}
 
 {% block content %}
-<div class="container mx-auto px-4 py-6">
-    <!-- Bilgi Mesajları -->
-    {% if messages %}
-    <div id="messages" class="fixed top-4 left-4 z-50 space-y-2">
-        {% for message in messages %}
-        <div class="message bg-white border-l-4 p-3 shadow-sm rounded-r-lg {% if message.tags == 'success' %}border-green-500{% elif message.tags == 'error' %}border-red-500{% else %}border-blue-500{% endif %} transform transition-all duration-300 opacity-0 translate-y-[-100%]">
-            <div class="flex items-center">
-                {% if message.tags == 'success' %}
-                <svg class="w-5 h-5 text-green-500 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path>
-                </svg>
-                {% elif message.tags == 'error' %}
-                <svg class="w-5 h-5 text-red-500 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
-                </svg>
-                {% else %}
-                <svg class="w-5 h-5 text-blue-500 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path>
-                </svg>
-                {% endif %}
-                <p class="text-sm {% if message.tags == 'success' %}text-green-700{% elif message.tags == 'error' %}text-red-700{% else %}text-blue-700{% endif %}">
-                    {{ message }}
-                </p>
-            </div>
+<div class="container mx-auto px-4 sm:px-6 lg:px-8">
+    <h1 class="text-2xl font-semibold text-gray-900 mb-6">Hisse Yönetimi</h1>
+    
+    <!-- İstatistik Kartları -->
+    <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6">
+        <div class="bg-blue-50 rounded-lg p-4 border border-blue-200">
+            <div class="text-sm text-blue-600">Toplam Hisse:</div>
+            <div class="text-2xl font-bold text-blue-800">{{ total_stocks }}</div>
         </div>
-        {% endfor %}
-    </div>
-    {% endif %}
-
-    <!-- Başlık ve İstatistikler -->
-    <div class="mb-6">
-        <h1 class="text-2xl font-bold text-gray-800 mb-2">Hisse Yönetimi</h1>
-        <div class="flex gap-4">
-            <div class="bg-blue-100 px-4 py-2 rounded-lg">
-                <span class="text-sm text-blue-800">Toplam Hisse:</span>
-                <span class="font-bold text-blue-800 ml-1">{{ total_stocks }}</span>
-            </div>
-            <div class="bg-green-100 px-4 py-2 rounded-lg">
-                <span class="text-sm text-green-800">Aktif Hisse:</span>
-                <span class="font-bold text-green-800 ml-1">{{ active_stocks }}</span>
-            </div>
+        <div class="bg-green-50 rounded-lg p-4 border border-green-200">
+            <div class="text-sm text-green-600">Aktif Hisse:</div>
+            <div class="text-2xl font-bold text-green-800">{{ active_stocks }}</div>
         </div>
     </div>
 
-    <!-- Yeni Hisse Ekleme Butonu -->
-    <button onclick="openAddModal()" class="mb-6 bg-green-500 text-white px-4 py-2 rounded-lg hover:bg-green-600 transition-colors duration-200 flex items-center">
-        <svg class="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6v6m0 0v6m0-6h6m-6 0H6"></path>
-        </svg>
-        Yeni Hisse Ekle
-    </button>
+    <!-- Butonlar -->
+    <div class="flex justify-between items-center mb-6">
+        <div class="flex space-x-4">
+            <a href="{% url 'add_stock' %}" class="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md text-white bg-green-600 hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-green-500">
+                <svg class="mr-2 h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6v6m0 0v6m0-6h6m-6 0H6"/>
+                </svg>
+                Yeni Hisse Ekle
+            </a>
+            <a href="{% url 'bulk_add_stock_prices' %}" class="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500">
+                <svg class="mr-2 h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 13h6m-3-3v6m5 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/>
+                </svg>
+                Toplu Fiyat Ekle
+            </a>
+        </div>
+        <div class="relative">
+            <input type="text" id="search" placeholder="Hisse ara..." class="w-64 px-4 py-2 rounded-lg border border-gray-300 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500">
+        </div>
+    </div>
 
-    <!-- Hisse Listesi -->
-    <div class="bg-white rounded-lg shadow-md overflow-hidden">
+    <!-- Hisse Tablosu -->
+    <div class="bg-white shadow overflow-hidden sm:rounded-lg">
         <table class="min-w-full divide-y divide-gray-200">
             <thead class="bg-gray-50">
                 <tr>
-                    <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Hisse Adı</th>
-                    <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Sembol</th>
-                    <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Sektör</th>
-                    <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Durum</th>
-                    <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">İşlemler</th>
+                    <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Hisse Adı</th>
+                    <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Sembol</th>
+                    <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Sektör</th>
+                    <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Durum</th>
+                    <th scope="col" class="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">İşlemler</th>
                 </tr>
             </thead>
             <tbody class="bg-white divide-y divide-gray-200">
                 {% for stock in stocks %}
                 <tr>
-                    <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{{ stock.name }}</td>
-                    <td class="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">{{ stock.symbol }}</td>
+                    <td class="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">{{ stock.name }}</td>
+                    <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{{ stock.symbol }}</td>
                     <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{{ stock.sector|default:"-" }}</td>
                     <td class="px-6 py-4 whitespace-nowrap">
-                        {% if stock.is_active %}
-                        <span class="px-2 inline-flex text-xs leading-5 font-semibold rounded-full bg-green-100 text-green-800">
-                            Aktif
+                        <span class="px-2 inline-flex text-xs leading-5 font-semibold rounded-full {% if stock.is_active %}bg-green-100 text-green-800{% else %}bg-red-100 text-red-800{% endif %}">
+                            {% if stock.is_active %}Aktif{% else %}Pasif{% endif %}
                         </span>
-                        {% else %}
-                        <span class="px-2 inline-flex text-xs leading-5 font-semibold rounded-full bg-red-100 text-red-800">
-                            Pasif
-                        </span>
-                        {% endif %}
                     </td>
-                    <td class="px-6 py-4 whitespace-nowrap text-sm font-medium">
-                        <div class="flex space-x-2">
-                            <button onclick="openEditModal('{{ stock.id }}', '{{ stock.name }}', '{{ stock.symbol }}', '{{ stock.sector|default:'' }}', '{{ stock.description|default:'' }}')" class="text-blue-600 hover:text-blue-900">Düzenle</button>
-                            <form action="{% url 'toggle_stock_status' stock.id %}" method="POST" class="inline">
-                                {% csrf_token %}
-                                <button type="submit" class="text-yellow-600 hover:text-yellow-900">
-                                    {% if stock.is_active %}Pasif Yap{% else %}Aktif Yap{% endif %}
-                                </button>
-                            </form>
-                            <form action="{% url 'delete_stock' stock.id %}" method="POST" class="inline" onsubmit="return confirmDelete()">
-                                {% csrf_token %}
-                                <button type="submit" class="text-red-600 hover:text-red-900">Sil</button>
-                            </form>
+                    <td class="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
+                        <div class="flex justify-end items-center space-x-2">
+                            <button onclick="showUploadModal('{{ stock.id }}', '{{ stock.symbol }}')" class="text-white bg-purple-600 hover:bg-purple-700 px-3 py-1 rounded-md text-sm font-medium focus:outline-none">
+                                Veri Yükle
+                            </button>
+                            <a href="#" class="text-blue-600 hover:text-blue-900">Düzenle</a>
+                            {% if stock.is_active %}
+                            <a href="#" class="text-yellow-600 hover:text-yellow-900">Pasif Yap</a>
+                            {% else %}
+                            <a href="#" class="text-green-600 hover:text-green-900">Aktif Yap</a>
+                            {% endif %}
+                            <a href="#" class="text-red-600 hover:text-red-900">Sil</a>
                         </div>
-                    </td>
-                </tr>
-                {% empty %}
-                <tr>
-                    <td colspan="5" class="px-6 py-4 text-center text-sm text-gray-500">
-                        Henüz hisse kaydı bulunmamaktadır.
                     </td>
                 </tr>
                 {% endfor %}
@@ -110,148 +81,89 @@
     </div>
 </div>
 
-<!-- Yeni Hisse Ekleme Modal -->
-<div id="addModal" class="fixed inset-0 hidden z-50">
-    <div class="fixed inset-0 bg-black bg-opacity-50 transition-opacity"></div>
-    <div class="absolute inset-0 overflow-y-auto">
-        <div class="flex min-h-full items-center justify-center p-4">
-            <div class="relative transform overflow-hidden rounded-lg bg-white text-left shadow-xl transition-all sm:my-8 sm:w-full sm:max-w-lg">
-                <div class="bg-white px-4 pb-4 pt-5 sm:p-6 sm:pb-4">
-                    <h3 class="text-lg font-medium leading-6 text-gray-900 mb-4">Yeni Hisse Ekle</h3>
-                    <form action="{% url 'add_stock' %}" method="POST">
-                        {% csrf_token %}
-                        <div class="mb-4">
-                            <label class="block text-sm font-medium text-gray-700">Hisse Adı</label>
-                            <input type="text" name="name" required class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500">
-                        </div>
-                        <div class="mb-4">
-                            <label class="block text-sm font-medium text-gray-700">Sembol</label>
-                            <input type="text" name="symbol" required class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500">
-                        </div>
-                        <div class="mb-4">
-                            <label class="block text-sm font-medium text-gray-700">Sektör</label>
-                            <input type="text" name="sector" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500">
-                        </div>
-                        <div class="mb-4">
-                            <label class="block text-sm font-medium text-gray-700">Açıklama</label>
-                            <textarea name="description" rows="3" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500"></textarea>
-                        </div>
-                        <div class="flex justify-end space-x-3">
-                            <button type="button" onclick="closeAddModal()" class="px-4 py-2 text-sm font-medium text-gray-700 bg-gray-100 rounded-md hover:bg-gray-200">İptal</button>
-                            <button type="submit" class="px-4 py-2 text-sm font-medium text-white bg-blue-600 rounded-md hover:bg-blue-700">Ekle</button>
-                        </div>
-                    </form>
-                </div>
+<!-- Veri Yükleme Modal -->
+<div id="uploadModal" class="hidden fixed inset-0 bg-gray-600 bg-opacity-50 overflow-y-auto h-full w-full z-50">
+    <div class="relative top-20 mx-auto p-5 border w-96 shadow-lg rounded-md bg-white">
+        <div class="mt-3">
+            <div class="flex items-center justify-center">
+                <h3 class="text-lg leading-6 font-medium text-gray-900" id="modalTitle">Veri Yükle</h3>
             </div>
-        </div>
-    </div>
-</div>
-
-<!-- Hisse Düzenleme Modal -->
-<div id="editModal" class="fixed inset-0 hidden z-50">
-    <div class="fixed inset-0 bg-black bg-opacity-50 transition-opacity"></div>
-    <div class="absolute inset-0 overflow-y-auto">
-        <div class="flex min-h-full items-center justify-center p-4">
-            <div class="relative transform overflow-hidden rounded-lg bg-white text-left shadow-xl transition-all sm:my-8 sm:w-full sm:max-w-lg">
-                <div class="bg-white px-4 pb-4 pt-5 sm:p-6 sm:pb-4">
-                    <h3 class="text-lg font-medium leading-6 text-gray-900 mb-4">Hisse Düzenle</h3>
-                    <form id="editForm" method="POST">
-                        {% csrf_token %}
-                        <div class="mb-4">
-                            <label class="block text-sm font-medium text-gray-700">Hisse Adı</label>
-                            <input type="text" name="name" id="editName" required class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500">
-                        </div>
-                        <div class="mb-4">
-                            <label class="block text-sm font-medium text-gray-700">Sembol</label>
-                            <input type="text" name="symbol" id="editSymbol" required class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500">
-                        </div>
-                        <div class="mb-4">
-                            <label class="block text-sm font-medium text-gray-700">Sektör</label>
-                            <input type="text" name="sector" id="editSector" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500">
-                        </div>
-                        <div class="mb-4">
-                            <label class="block text-sm font-medium text-gray-700">Açıklama</label>
-                            <textarea name="description" id="editDescription" rows="3" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500"></textarea>
-                        </div>
-                        <div class="flex justify-end space-x-3">
-                            <button type="button" onclick="closeEditModal()" class="px-4 py-2 text-sm font-medium text-gray-700 bg-gray-100 rounded-md hover:bg-gray-200">İptal</button>
-                            <button type="submit" class="px-4 py-2 text-sm font-medium text-white bg-blue-600 rounded-md hover:bg-blue-700">Kaydet</button>
-                        </div>
-                    </form>
-                </div>
+            <div class="mt-2 px-7 py-3">
+                <form id="uploadForm" method="post" enctype="multipart/form-data">
+                    {% csrf_token %}
+                    <input type="hidden" id="stockId" name="stock_id">
+                    <div class="mb-4">
+                        <label class="block text-gray-700 text-sm font-bold mb-2">Hisse:</label>
+                        <p id="stockSymbol" class="text-gray-600"></p>
+                    </div>
+                    <div class="mb-4">
+                        <label class="block text-gray-700 text-sm font-bold mb-2">Dosya Seç:</label>
+                        <input type="file" name="file" accept=".csv,.xlsx" class="w-full px-3 py-2 border rounded-lg text-gray-700 focus:outline-none focus:border-blue-500">
+                    </div>
+                    <div class="flex items-center justify-between mt-4">
+                        <button type="button" onclick="closeUploadModal()" class="px-4 py-2 bg-gray-300 text-gray-700 rounded-md hover:bg-gray-400 focus:outline-none">
+                            İptal
+                        </button>
+                        <button type="submit" class="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 focus:outline-none">
+                            Yükle
+                        </button>
+                    </div>
+                </form>
             </div>
         </div>
     </div>
 </div>
 
 <script>
-    // Modal işlemleri
-    function openAddModal() {
-        document.getElementById('addModal').classList.remove('hidden');
-        document.body.style.overflow = 'hidden';
-    }
+function showUploadModal(stockId, symbol) {
+    document.getElementById('uploadModal').classList.remove('hidden');
+    document.getElementById('stockId').value = stockId;
+    document.getElementById('stockSymbol').textContent = symbol;
+}
 
-    function closeAddModal() {
-        document.getElementById('addModal').classList.add('hidden');
-        document.body.style.overflow = 'auto';
-    }
+function closeUploadModal() {
+    document.getElementById('uploadModal').classList.add('hidden');
+}
 
-    function openEditModal(id, name, symbol, sector, description) {
-        const modal = document.getElementById('editModal');
-        const form = document.getElementById('editForm');
-        form.action = "{% url 'stock_management' %}" + `edit/${id}/`;
-        
-        document.getElementById('editName').value = name;
-        document.getElementById('editSymbol').value = symbol;
-        document.getElementById('editSector').value = sector;
-        document.getElementById('editDescription').value = description;
-        
-        modal.classList.remove('hidden');
-        document.body.style.overflow = 'hidden';
-    }
-
-    function closeEditModal() {
-        document.getElementById('editModal').classList.add('hidden');
-        document.body.style.overflow = 'auto';
-    }
-
-    function confirmDelete() {
-        return confirm('Bu hisseyi silmek istediğinizden emin misiniz?');
-    }
-
-    // Modal dışına tıklandığında modalları kapat
-    window.onclick = function(event) {
-        const addModal = document.getElementById('addModal');
-        const editModal = document.getElementById('editModal');
-        
-        if (event.target.classList.contains('fixed') && event.target.classList.contains('inset-0')) {
-            if (!addModal.classList.contains('hidden')) {
-                closeAddModal();
-            }
-            if (!editModal.classList.contains('hidden')) {
-                closeEditModal();
-            }
+// Form submit işlemi
+document.getElementById('uploadForm').addEventListener('submit', function(e) {
+    e.preventDefault();
+    
+    const formData = new FormData(this);
+    
+    fetch('{% url "upload_stock_data" %}', {
+        method: 'POST',
+        body: formData
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            alert(data.message);
+            closeUploadModal();
+        } else {
+            alert(data.error);
         }
-    }
-
-    // Bilgi mesajlarını yönet
-    document.addEventListener('DOMContentLoaded', function() {
-        const messages = document.querySelectorAll('.message');
-        messages.forEach((message, index) => {
-            setTimeout(() => {
-                message.style.opacity = '1';
-                message.style.transform = 'translateY(0)';
-                
-                setTimeout(() => {
-                    message.style.opacity = '0';
-                    message.style.transform = 'translateY(-100%)';
-                    
-                    setTimeout(() => {
-                        message.remove();
-                    }, 300);
-                }, 2000); // 2 saniye sonra kaybolacak
-            }, index * 100);
-        });
+    })
+    .catch(error => {
+        alert('Bir hata oluştu: ' + error);
     });
+});
+
+// Arama işlevi
+document.getElementById('search').addEventListener('input', function(e) {
+    const searchText = e.target.value.toLowerCase();
+    const rows = document.querySelectorAll('tbody tr');
+    
+    rows.forEach(row => {
+        const stockName = row.querySelector('td:first-child').textContent.toLowerCase();
+        const symbol = row.querySelector('td:nth-child(2)').textContent.toLowerCase();
+        
+        if (stockName.includes(searchText) || symbol.includes(searchText)) {
+            row.style.display = '';
+        } else {
+            row.style.display = 'none';
+        }
+    });
+});
 </script>
 {% endblock %} 
