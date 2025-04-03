@@ -42,18 +42,24 @@
                     </td>
                     <td class="px-6 py-4 whitespace-nowrap">
                         {% if file.is_processed %}
-                        <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-800">
+                        <span class="processing-status success">
                             <svg class="mr-1.5 h-4 w-4 text-green-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path>
                             </svg>
                             İşlendi
                         </span>
                         {% else %}
-                        <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-yellow-100 text-yellow-800">
-                            <svg class="mr-1.5 h-4 w-4 text-yellow-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+                        <span id="status-{{ file.id }}" class="processing-status">
+                            <svg id="spinner-{{ file.id }}" class="hidden mr-1.5 h-4 w-4 text-yellow-500 animate-spin" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                                <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
                             </svg>
-                            Bekliyor
+                            <span id="status-text-{{ file.id }}" class="inline-flex items-center">
+                                <svg class="mr-1.5 h-4 w-4 text-yellow-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+                                </svg>
+                                Bekliyor
+                            </span>
                         </span>
                         {% endif %}
                     </td>
@@ -146,7 +152,115 @@
     </div>
 </div>
 
+<style>
+    @keyframes spin {
+        to { transform: rotate(360deg); }
+    }
+    .animate-spin {
+        animation: spin 1s linear infinite;
+    }
+    .processing-status {
+        display: inline-flex;
+        align-items: center;
+        padding: 0.25rem 0.75rem;
+        border-radius: 9999px;
+        font-size: 0.75rem;
+        font-weight: 500;
+        cursor: default;
+    }
+    .processing-status.processing {
+        background-color: #FEF3C7;
+        color: #92400E;
+    }
+    .processing-status.success {
+        background-color: #DEF7EC;
+        color: #03543F;
+    }
+    .processing-status.error {
+        background-color: #FEE2E2;
+        color: #991B1B;
+        cursor: pointer;
+    }
+    .tooltip {
+        position: relative;
+        display: inline-block;
+    }
+    .tooltip .tooltip-text {
+        visibility: hidden;
+        width: 300px;
+        background-color: #374151;
+        color: #fff;
+        text-align: left;
+        border-radius: 6px;
+        padding: 8px;
+        position: absolute;
+        z-index: 9999;
+        top: 100%;
+        left: 50%;
+        margin-top: 10px;
+        transform: translateX(-50%);
+        opacity: 0;
+        transition: opacity 0.3s;
+        font-size: 0.75rem;
+        white-space: pre-wrap;
+        word-wrap: break-word;
+        box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
+    }
+    .tooltip .tooltip-text::before {
+        content: "";
+        position: absolute;
+        top: -5px;
+        left: 50%;
+        transform: translateX(-50%);
+        border-width: 0 5px 5px 5px;
+        border-style: solid;
+        border-color: transparent transparent #374151 transparent;
+    }
+    .tooltip:hover .tooltip-text {
+        visibility: visible;
+        opacity: 1;
+    }
+
+    /* Bildirim stilleri */
+    #notification {
+        position: fixed;
+        top: 1rem;
+        right: 1rem;
+        padding: 1rem;
+        border-radius: 0.5rem;
+        color: white;
+        font-size: 0.875rem;
+        max-width: 24rem;
+        z-index: 9999;
+        display: none;
+        animation: slideIn 0.3s ease-out;
+        box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
+    }
+    #notification.success {
+        background-color: #059669;
+    }
+    #notification.error {
+        background-color: #DC2626;
+    }
+    @keyframes slideIn {
+        from {
+            transform: translateX(100%);
+            opacity: 0;
+        }
+        to {
+            transform: translateX(0);
+            opacity: 1;
+        }
+    }
+</style>
+
+<!-- Bildirim elementi -->
+<div id="notification" class="hidden"></div>
+
 <script>
+// CSRF token tanımı
+const csrftoken = document.querySelector('[name=csrfmiddlewaretoken]').value;
+
 function showUploadModal() {
     document.getElementById('uploadModal').classList.remove('hidden');
 }
@@ -166,26 +280,74 @@ function closeNoteModal() {
     document.getElementById('noteForm').reset();
 }
 
-function processFile(fileId) {
-    if (confirm('Bu dosyayı işlemek istediğinize emin misiniz?')) {
-        fetch(`/api/process-file/${fileId}/`, {
-            method: 'POST',
-            headers: {
-                'X-CSRFToken': document.querySelector('[name=csrfmiddlewaretoken]').value,
-            },
-        })
-        .then(response => response.json())
-        .then(data => {
-            if (data.success) {
-                window.location.reload();
-            } else {
-                alert(data.error);
-            }
-        })
-        .catch(error => {
-            alert('Bir hata oluştu: ' + error);
-        });
+function updateProcessingStatus(fileId, status, errorMessage = '') {
+    const statusElement = document.getElementById(`status-${fileId}`);
+    const spinnerElement = document.getElementById(`spinner-${fileId}`);
+    const statusTextElement = document.getElementById(`status-text-${fileId}`);
+    
+    if (status === 'processing') {
+        statusElement.className = 'processing-status processing';
+        spinnerElement.classList.remove('hidden');
+        statusTextElement.innerHTML = 'İşleniyor...';
+    } else if (status === 'success') {
+        statusElement.className = 'processing-status success';
+        spinnerElement.classList.add('hidden');
+        statusTextElement.innerHTML = `
+            <svg class="mr-1.5 h-4 w-4 text-green-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path>
+            </svg>
+            İşlendi
+        `;
+    } else if (status === 'error') {
+        statusElement.className = 'processing-status error tooltip';
+        spinnerElement.classList.add('hidden');
+        statusTextElement.innerHTML = `
+            <div class="inline-flex items-center">
+                <svg class="mr-1.5 h-4 w-4 text-red-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+                </svg>
+                Hata
+                <span class="tooltip-text">Hata Detayı:\n${errorMessage}</span>
+            </div>
+        `;
     }
+}
+
+function processFile(fileId) {
+    // İşlem başladığında durumu güncelle
+    updateProcessingStatus(fileId, 'processing');
+    
+    // URL'yi düzelt ve CSRF token ekle
+    fetch(`/api/process-file/${fileId}/`, {
+        method: 'POST',
+        headers: {
+            'X-CSRFToken': csrftoken,
+            'Content-Type': 'application/json'
+        },
+        credentials: 'same-origin'
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            updateProcessingStatus(fileId, 'success');
+            showNotification(data.message, 'success');
+            // Başarılı durumda sayfayı yenile
+            setTimeout(() => {
+                window.location.reload();
+            }, 3000);
+        } else {
+            const errorMessage = data.error || 'Bilinmeyen bir hata oluştu.';
+            updateProcessingStatus(fileId, 'error', errorMessage);
+            showNotification('İşlem başarısız. Detaylar için hata durumunun üzerine gelin.', 'error');
+            // Hata durumunda sayfayı yenileme
+        }
+    })
+    .catch(error => {
+        const errorMessage = error.toString();
+        updateProcessingStatus(fileId, 'error', errorMessage);
+        showNotification('İşlem başarısız. Detaylar için hata durumunun üzerine gelin.', 'error');
+        // Hata durumunda sayfayı yenileme
+    });
 }
 
 function deleteFile(fileId) {
@@ -252,5 +414,23 @@ document.getElementById('noteForm').addEventListener('submit', function(e) {
         alert('Bir hata oluştu: ' + error);
     });
 });
+
+// Bildirim fonksiyonu
+function showNotification(message, type = 'success') {
+    const notification = document.getElementById('notification');
+    notification.textContent = message;
+    notification.className = `${type} shadow-lg`;
+    notification.style.display = 'block';
+
+    // Mesajı satırlara böl
+    if (message.includes('\n')) {
+        notification.innerHTML = message.split('\n').join('<br>');
+    }
+
+    // 5 saniye sonra bildirimi kaldır
+    setTimeout(() => {
+        notification.style.display = 'none';
+    }, 5000);
+}
 </script>
 {% endblock %} 

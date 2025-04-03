@@ -6,8 +6,8 @@ from . import views
 urlpatterns = [
     path('admin/', admin.site.urls),
     path('', views.home, name='home'),
-    path('login/', auth_views.LoginView.as_view(template_name='Tahmin/login.html'), name='login'),
-    path('logout/', auth_views.LogoutView.as_view(template_name='Tahmin/home.html'), name='logout'),
+    path('login/', views.login_view, name='login'),
+    path('logout/', views.logout_view, name='logout'),
     path('register/', views.register, name='register'),
     path('dashboard/', views.dashboard, name='dashboard'),
     path('admin-dashboard/', views.admin_dashboard, name='admin_dashboard'),
@@ -29,7 +29,7 @@ urlpatterns = [
     path('stocks/<int:stock_id>/upload-file/', views.upload_stock_file, name='upload_stock_file'),
     path('api/update-file-note/<int:file_id>/', views.update_file_note, name='update_file_note'),
     path('api/delete-file/<int:file_id>/', views.delete_file, name='delete_file'),
-    path('api/process-file/<int:file_id>/', views.process_file, name='process_file'),
+    path('api/process-file/<int:file_id>/', views.process_stock_data, name='process_file'),
 
     # Kullanıcı profili
     path('profile/', views.profile_view, name='profile'),

@@ -1,7 +1,7 @@
 from django.shortcuts import render, redirect, get_object_or_404
 from django.contrib.auth.models import User
 from django.contrib import messages
-from django.contrib.auth import login
+from django.contrib.auth import login, logout, authenticate
 from django.contrib.auth.decorators import login_required, user_passes_test
 from django.utils import timezone
 from datetime import datetime
@@ -23,15 +23,6 @@ from django.http import HttpResponse
 
 def is_staff_user(user):
     return user.is_staff
-
-class CustomLoginView(LoginView):
-    template_name = 'Tahmin/login.html'
-    
-    def form_valid(self, form):
-        response = super().form_valid(form)
-        if self.request.user.is_staff:
-            return redirect('admin_dashboard')
-        return redirect('dashboard')
 
 def home(request):
     if request.user.is_authenticated:
@@ -65,8 +56,10 @@ def dashboard(request):
 
 def register(request):
     if request.method == 'POST':
+        print("Gelen veri:", request.POST)  # POST verilerini görüntüle
+        print("Password:", request.POST.get('password1'))   # Kullanıcı bilgisini görüntüle
         username = request.POST.get('username')
-        password = request.POST.get('password')
+        password = request.POST.get('password1')
         email = request.POST.get('email')
         
         if User.objects.filter(username=username).exists():
@@ -77,10 +70,17 @@ def register(request):
             messages.error(request, 'Bu e-posta adresi zaten kullanılıyor.')
             return redirect('register')
         
-        user = User.objects.create_user(username=username, password=password, email=email)
-        login(request, user)
-        messages.success(request, 'Kayıt başarılı! Hoş geldiniz.')
-        return redirect('dashboard')
+        try:
+            user = User.objects.create_user(
+                username=username,
+                email=email,
+                password=password
+            )
+            messages.success(request, 'Kayıt başarılı! Şimdi giriş yapabilirsiniz.')
+            return redirect('login')
+        except Exception as e:
+            messages.error(request, f'Kayıt sırasında bir hata oluştu: {str(e)}')
+            return redirect('register')
         
     return render(request, 'Tahmin/register.html')
 
@@ -145,7 +145,7 @@ def edit_stock(request, stock_id):
         try:
             stock = Stock.objects.get(id=stock_id)
             stock.name = request.POST.get('name')
-            stock.symbol = request.POST.get('symbol')
+            stock.symbol = request.POST.get('symbol').upper()
             stock.sector = request.POST.get('sector')
             stock.save()
             return JsonResponse({'success': True})
@@ -165,6 +165,8 @@ def delete_stock(request, stock_id):
             return JsonResponse({'success': True})
         except Stock.DoesNotExist:
             return JsonResponse({'success': False, 'error': 'Hisse bulunamadı.'})
+        except Exception as e:
+            return JsonResponse({'success': False, 'error': str(e)})
     return JsonResponse({'success': False, 'error': 'Geçersiz istek.'})
 
 @login_required
@@ -178,6 +180,8 @@ def toggle_stock_status(request, stock_id):
             return JsonResponse({'success': True})
         except Stock.DoesNotExist:
             return JsonResponse({'success': False, 'error': 'Hisse bulunamadı.'})
+        except Exception as e:
+            return JsonResponse({'success': False, 'error': str(e)})
     return JsonResponse({'success': False, 'error': 'Geçersiz istek.'})
 
 @login_required
@@ -355,99 +359,133 @@ def upload_stock_data(request):
 
 @login_required
 @user_passes_test(is_staff_user)
-def process_stock_data(request):
+def process_stock_data(request, file_id):
     if request.method == 'POST':
         try:
-            data = json.loads(request.body)
-            file_path = data.get('file_path')
-            stock_id = data.get('stock_id')
+            stock_file = StockFile.objects.get(id=file_id)
             
-            if not file_path or not stock_id:
+            if stock_file.is_processed:
                 return JsonResponse({
                     'success': False,
-                    'error': 'Gerekli parametreler eksik!'
+                    'error': 'Bu dosya zaten işlenmiş!'
                 })
             
+            file_path = stock_file.file_path
+            stock = stock_file.stock
+
             if not os.path.exists(file_path):
                 return JsonResponse({
                     'success': False,
-                    'error': 'Dosya bulunamadı!'
+                    'error': 'Dosya bulunamadı.'
                 })
-            
-            stock = get_object_or_404(Stock, id=stock_id)
-            
+
             try:
-                # CSV dosyasını oku
-                df = pd.read_csv(file_path, 
-                               encoding='utf-8',
-                               thousands='.',  # Binlik ayracı
-                               decimal=',',    # Ondalık ayracı
-                               header=None,    # Başlık satırı yok
-                               names=['date', 'opening_price', 'closing_price', 'highest_price', 'lowest_price', 'volume', 'change'])
+                # CSV dosyasını oku ve ilk satırı atlayarak sütun isimlerini manuel belirt
+                df = pd.read_csv(file_path, encoding='utf-8', skiprows=1, 
+                               names=['Tarih', 'Açılış', 'Son', 'Yüksek', 'Düşük', 'Hacim', 'Değişim %'])
                 
-                # Tarih sütununu düzenle
-                df['date'] = pd.to_datetime(df['date'], format='%d.%m.%Y')
-                
-                # Hacim sütunundaki 'M' harfini temizle ve sayıya çevir
-                df['volume'] = df['volume'].str.replace('M', '').astype(float) * 1_000_000
-                
-                # Fiyat sütunlarındaki tırnak işaretlerini temizle
-                price_columns = ['opening_price', 'closing_price', 'highest_price', 'lowest_price']
-                for col in price_columns:
-                    df[col] = df[col].str.replace('"', '')
+                # Tarih sütununu temizle ve dönüştür
+                df['Tarih'] = df['Tarih'].str.strip().str.replace('"', '')
+                df['Tarih'] = pd.to_datetime(df['Tarih'], format='%d.%m.%Y')
                 
                 success_count = 0
                 error_count = 0
+                errors = []
                 
-                for _, row in df.iterrows():
+                # Verileri veritabanına kaydet
+                for index, row in df.iterrows():
                     try:
-                        # Aynı tarihte kayıt var mı kontrol et
-                        if StockPrice.objects.filter(stock=stock, date=row['date'].date()).exists():
-                            error_count += 1
-                            continue
+                        # Hacim değerini düzelt (M, B gibi son ekleri kaldır ve sayıya çevir)
+                        volume = str(row['Hacim']).strip().replace('"', '')
+                        if 'M' in volume:
+                            volume = float(volume.replace('M', '').replace(',', '.')) * 1_000_000
+                        elif 'B' in volume:
+                            volume = float(volume.replace('B', '').replace(',', '.')) * 1_000
+                        else:
+                            volume = float(volume.replace(',', '.'))
                         
-                        # Veriyi kaydet
-                        StockPrice.objects.create(
+                        # Yüzde değişimi düzelt
+                        change_str = str(row['Değişim %']).strip().replace('"', '').replace('%', '').replace(',', '.')
+                        change_percent = float(change_str) if change_str else 0.0
+                        
+                        # Fiyat değerlerini float'a çevir
+                        closing_price = float(str(row['Son']).strip().replace('"', '').replace(',', '.'))
+                        opening_price = float(str(row['Açılış']).strip().replace('"', '').replace(',', '.'))
+                        highest_price = float(str(row['Yüksek']).strip().replace('"', '').replace(',', '.'))
+                        lowest_price = float(str(row['Düşük']).strip().replace('"', '').replace(',', '.'))
+                        
+                        # Eğer bu tarih için kayıt varsa güncelle, yoksa yeni kayıt oluştur
+                        stock_price, created = StockPrice.objects.update_or_create(
                             stock=stock,
-                            date=row['date'].date(),
-                            opening_price=float(row['opening_price']),
-                            closing_price=float(row['closing_price']),
-                            highest_price=float(row['highest_price']),
-                            lowest_price=float(row['lowest_price']),
-                            volume=int(row['volume']),
-                            daily_change=float(row['change'].str.replace('%', ''))
+                            date=row['Tarih'].date(),
+                            defaults={
+                                'closing_price': closing_price,
+                                'opening_price': opening_price,
+                                'highest_price': highest_price,
+                                'lowest_price': lowest_price,
+                                'volume': volume,
+                                'daily_change': change_percent
+                            }
                         )
                         success_count += 1
                         
                     except Exception as e:
                         error_count += 1
+                        error_detail = f"Satır {index + 2}: {str(e)}"
+                        errors.append(error_detail)
                         continue
                 
-                # İşlem tamamlandıktan sonra dosyayı sil
-                os.remove(file_path)
+                # Eğer hiç başarılı kayıt yoksa ve hata varsa
+                if success_count == 0 and error_count > 0:
+                    error_message = "Hiçbir veri kaydedilemedi!\n\nHata Detayları:\n" + "\n".join(errors[:5])
+                    if len(errors) > 5:
+                        error_message += f"\n\n... ve {len(errors) - 5} hata daha."
+                    return JsonResponse({
+                        'success': False,
+                        'error': error_message
+                    })
+                
+                # En az bir başarılı kayıt varsa dosyayı işlenmiş olarak işaretle
+                if success_count > 0:
+                    stock_file.is_processed = True
+                    stock_file.save()
+                
+                # Başarı mesajı döndür
+                message = f'{success_count} kayıt başarıyla eklendi/güncellendi.'
+                if error_count > 0:
+                    message += f'\n{error_count} kayıt işlenemedi.'
+                    if errors:
+                        message += '\n\nHata Detayları:\n' + '\n'.join(errors[:3])
+                        if len(errors) > 3:
+                            message += f'\n\n... ve {len(errors) - 3} hata daha.'
                 
                 return JsonResponse({
                     'success': True,
-                    'message': f'{success_count} kayıt başarıyla eklendi. {error_count} kayıt eklenemedi.'
+                    'message': message,
+                    'success_count': success_count,
+                    'error_count': error_count
                 })
                 
             except Exception as e:
-                # Hata durumunda dosyayı sil
-                os.remove(file_path)
                 return JsonResponse({
                     'success': False,
-                    'error': f'Veri işleme hatası: {str(e)}'
+                    'error': f'CSV okuma hatası: {str(e)}'
                 })
             
+        except StockFile.DoesNotExist:
+            return JsonResponse({
+                'success': False,
+                'error': 'Dosya bulunamadı.'
+            })
         except Exception as e:
             return JsonResponse({
                 'success': False,
-                'error': str(e)
+                'error': f'Veri işleme hatası: {str(e)}'
             })
     
     return JsonResponse({
         'success': False,
-        'error': 'Geçersiz istek metodu'
+        'error': 'Geçersiz istek metodu.'
     })
 
 @login_required
@@ -597,103 +635,41 @@ def delete_file(request, file_id):
     })
 
 @login_required
-@user_passes_test(is_staff_user)
-def process_file(request, file_id):
-    if request.method == 'POST':
-        try:
-            stock_file = get_object_or_404(StockFile, id=file_id)
-            
-            if stock_file.is_processed:
-                return JsonResponse({
-                    'success': False,
-                    'error': 'Bu dosya zaten işlenmiş!'
-                })
-            
-            if not os.path.exists(stock_file.file_path):
-                return JsonResponse({
-                    'success': False,
-                    'error': 'Dosya bulunamadı!'
-                })
-            
-            try:
-                # CSV dosyasını oku
-                df = pd.read_csv(stock_file.file_path, 
-                               encoding='utf-8',
-                               thousands='.',  # Binlik ayracı
-                               decimal=',',    # Ondalık ayracı
-                               header=None,    # Başlık satırı yok
-                               names=['date', 'opening_price', 'closing_price', 'highest_price', 'lowest_price', 'volume', 'change'])
-                
-                # Tarih sütununu düzenle
-                df['date'] = pd.to_datetime(df['date'], format='%d.%m.%Y')
-                
-                # Hacim sütunundaki 'M' harfini temizle ve sayıya çevir
-                df['volume'] = df['volume'].str.replace('M', '').astype(float) * 1_000_000
-                
-                # Fiyat sütunlarındaki tırnak işaretlerini temizle
-                price_columns = ['opening_price', 'closing_price', 'highest_price', 'lowest_price']
-                for col in price_columns:
-                    df[col] = df[col].str.replace('"', '')
-                
-                success_count = 0
-                error_count = 0
-                
-                for _, row in df.iterrows():
-                    try:
-                        # Aynı tarihte kayıt var mı kontrol et
-                        if StockPrice.objects.filter(stock=stock_file.stock, date=row['date'].date()).exists():
-                            error_count += 1
-                            continue
-                        
-                        # Veriyi kaydet
-                        StockPrice.objects.create(
-                            stock=stock_file.stock,
-                            date=row['date'].date(),
-                            opening_price=float(row['opening_price']),
-                            closing_price=float(row['closing_price']),
-                            highest_price=float(row['highest_price']),
-                            lowest_price=float(row['lowest_price']),
-                            volume=int(row['volume']),
-                            daily_change=float(row['change'].str.replace('%', ''))
-                        )
-                        success_count += 1
-                        
-                    except Exception as e:
-                        error_count += 1
-                        continue
-                
-                # Dosyayı işlenmiş olarak işaretle
-                stock_file.is_processed = True
-                stock_file.save()
-                
-                return JsonResponse({
-                    'success': True,
-                    'message': f'{success_count} kayıt başarıyla eklendi. {error_count} kayıt eklenemedi.'
-                })
-                
-            except Exception as e:
-                return JsonResponse({
-                    'success': False,
-                    'error': f'Veri işleme hatası: {str(e)}'
-                })
-            
-        except Exception as e:
-            return JsonResponse({
-                'success': False,
-                'error': str(e)
-            })
-    
-    return JsonResponse({
-        'success': False,
-        'error': 'Geçersiz istek metodu'
-    })
-
-@login_required
 def profile_view(request):
     return render(request, 'Tahmin/profile.html', {
         'user': request.user,
         'user_role': 'Yetkili Kullanıcı' if request.user.is_staff else 'Normal Kullanıcı'
     })
+
+def logout_view(request):
+    logout(request)
+    return redirect('home')
+
+def login_view(request):
+        
+    print("Gelen veri:", request.POST)  # POST verilerini görüntüle
+    if request.user.is_authenticated:
+        if request.user.is_staff:
+            return redirect('admin_dashboard')
+        return redirect('dashboard')
+
+    if request.method == 'POST':
+        username = request.POST.get('username')
+        password = request.POST.get('password')
+        
+        user = authenticate(request, username=username, password=password)
+        
+        if user is not None:
+            login(request, user)
+            messages.success(request, 'Başarıyla giriş yaptınız.')
+            
+            if user.is_staff:
+                return redirect('admin_dashboard')
+            return redirect('dashboard')
+        else:
+            messages.error(request, 'Kullanıcı adı veya şifre hatalı.')
+    
+    return render(request, 'Tahmin/login.html')
 
 
 

@@ -76,8 +76,12 @@ WSGI_APPLICATION = "Hisse_Tahmin.wsgi.application"
 
 DATABASES = {
     "default": {
-        "ENGINE": "django.db.backends.sqlite3",
-        "NAME": BASE_DIR / "db.sqlite3",
+        "ENGINE": "django.db.backends.postgresql",
+        "NAME": "hisse_tahmin",
+        "USER": "postgres",
+        "PASSWORD": "Erdal0608*",
+        "HOST": "localhost",
+        "PORT": "5432",
     }
 }
 
@@ -123,7 +127,18 @@ STATIC_URL = "static/"
 
 DEFAULT_AUTO_FIELD = "django.db.models.BigAutoField"
 
-# Login yönlendirme ayarları
-LOGIN_REDIRECT_URL = 'home'
-LOGOUT_REDIRECT_URL = '/'
+# Authentication settings
+AUTHENTICATION_BACKENDS = [
+    'django.contrib.auth.backends.ModelBackend',
+]
+
+# Login settings
 LOGIN_URL = 'login'
+LOGIN_REDIRECT_URL = 'dashboard'
+LOGOUT_REDIRECT_URL = 'home'
+
+# Session settings
+SESSION_COOKIE_AGE = 1209600  # 2 weeks in seconds
+SESSION_SAVE_EVERY_REQUEST = True
+SESSION_COOKIE_SECURE = False  # Set to True in production with HTTPS
+SESSION_COOKIE_HTTPONLY = True
