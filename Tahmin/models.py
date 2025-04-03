@@ -58,3 +58,18 @@ class StockAnalysis(models.Model):
         verbose_name_plural = "Hisse Analizleri"
         ordering = ['-date']
         unique_together = ['stock', 'date']
+
+class StockFile(models.Model):
+    stock = models.ForeignKey(Stock, on_delete=models.CASCADE, related_name='files')
+    filename = models.CharField(max_length=255)
+    file_path = models.CharField(max_length=255)
+    note = models.TextField(blank=True, null=True)
+    is_processed = models.BooleanField(default=False)
+    uploaded_at = models.DateTimeField(auto_now_add=True)
+    uploaded_by = models.ForeignKey(User, on_delete=models.SET_NULL, null=True)
+
+    class Meta:
+        ordering = ['-uploaded_at']
+
+    def __str__(self):
+        return f"{self.stock.symbol} - {self.filename}"

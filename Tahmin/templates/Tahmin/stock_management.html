@@ -19,12 +19,12 @@
     <!-- Butonlar -->
     <div class="flex justify-between items-center mb-6">
         <div class="flex space-x-4">
-            <a href="{% url 'add_stock' %}" class="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md text-white bg-green-600 hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-green-500">
+            <button onclick="showAddModal()" class="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md text-white bg-green-600 hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-green-500">
                 <svg class="mr-2 h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6v6m0 0v6m0-6h6m-6 0H6"/>
                 </svg>
                 Yeni Hisse Ekle
-            </a>
+            </button>
             <a href="{% url 'bulk_add_stock_prices' %}" class="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500">
                 <svg class="mr-2 h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 13h6m-3-3v6m5 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/>
@@ -62,16 +62,25 @@
                     </td>
                     <td class="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
                         <div class="flex justify-end items-center space-x-2">
-                            <button onclick="showUploadModal('{{ stock.id }}', '{{ stock.symbol }}')" class="text-white bg-purple-600 hover:bg-purple-700 px-3 py-1 rounded-md text-sm font-medium focus:outline-none">
-                                Veri Yükle
+                            <a href="{% url 'stock_files' stock.id %}" class="inline-flex items-center px-3 py-1 border border-transparent text-sm font-medium rounded-md text-white bg-purple-600 hover:bg-purple-700 focus:outline-none">
+                                <svg class="mr-1.5 h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12"/>
+                                </svg>
+                                Dosyalar
+                            </a>
+                            <button onclick="showEditModal('{{ stock.id }}', '{{ stock.name }}', '{{ stock.symbol }}', '{{ stock.sector }}')" class="text-blue-600 hover:text-blue-900">
+                                <i class="fas fa-edit"></i> Düzenle
                             </button>
-                            <a href="#" class="text-blue-600 hover:text-blue-900">Düzenle</a>
-                            {% if stock.is_active %}
-                            <a href="#" class="text-yellow-600 hover:text-yellow-900">Pasif Yap</a>
-                            {% else %}
-                            <a href="#" class="text-green-600 hover:text-green-900">Aktif Yap</a>
-                            {% endif %}
-                            <a href="#" class="text-red-600 hover:text-red-900">Sil</a>
+                            <button onclick="toggleStatus('{{ stock.id }}', '{{ stock.is_active }}')" class="{% if stock.is_active %}text-yellow-600 hover:text-yellow-900{% else %}text-green-600 hover:text-green-900{% endif %}">
+                                {% if stock.is_active %}
+                                <i class="fas fa-ban"></i> Pasif Yap
+                                {% else %}
+                                <i class="fas fa-check"></i> Aktif Yap
+                                {% endif %}
+                            </button>
+                            <button onclick="deleteStock('{{ stock.id }}')" class="text-red-600 hover:text-red-900">
+                                <i class="fas fa-trash"></i> Sil
+                            </button>
                         </div>
                     </td>
                 </tr>
@@ -114,56 +123,348 @@
     </div>
 </div>
 
+<!-- Düzenleme Modal -->
+<div id="editModal" class="hidden fixed inset-0 bg-gray-600 bg-opacity-50 overflow-y-auto h-full w-full z-50">
+    <div class="relative top-20 mx-auto p-5 border w-96 shadow-lg rounded-md bg-white">
+        <div class="mt-3">
+            <div class="flex items-center justify-center">
+                <h3 class="text-lg leading-6 font-medium text-gray-900">Hisse Düzenle</h3>
+            </div>
+            <div class="mt-2 px-7 py-3">
+                <form id="editForm" method="post">
+                    {% csrf_token %}
+                    <input type="hidden" id="editStockId" name="stock_id">
+                    <div class="mb-4">
+                        <label class="block text-gray-700 text-sm font-bold mb-2">Hisse Adı:</label>
+                        <input type="text" id="editName" name="name" class="w-full px-3 py-2 border rounded-lg text-gray-700 focus:outline-none focus:border-blue-500">
+                    </div>
+                    <div class="mb-4">
+                        <label class="block text-gray-700 text-sm font-bold mb-2">Sembol:</label>
+                        <input type="text" id="editSymbol" name="symbol" class="w-full px-3 py-2 border rounded-lg text-gray-700 focus:outline-none focus:border-blue-500">
+                    </div>
+                    <div class="mb-4">
+                        <label class="block text-gray-700 text-sm font-bold mb-2">Sektör:</label>
+                        <input type="text" id="editSector" name="sector" class="w-full px-3 py-2 border rounded-lg text-gray-700 focus:outline-none focus:border-blue-500">
+                    </div>
+                    <div class="flex items-center justify-between mt-4">
+                        <button type="button" onclick="closeEditModal()" class="px-4 py-2 bg-gray-300 text-gray-700 rounded-md hover:bg-gray-400 focus:outline-none">
+                            İptal
+                        </button>
+                        <button type="submit" class="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 focus:outline-none">
+                            Kaydet
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Yeni Hisse Ekleme Modal -->
+<div id="addStockModal" class="hidden fixed inset-0 bg-gray-600 bg-opacity-50 overflow-y-auto h-full w-full z-50">
+    <div class="relative top-20 mx-auto p-5 border w-96 shadow-lg rounded-md bg-white">
+        <div class="mt-3">
+            <div class="flex items-center justify-between">
+                <h3 class="text-lg leading-6 font-medium text-gray-900">Yeni Hisse Ekle</h3>
+                <button onclick="closeAddModal()" class="text-gray-400 hover:text-gray-500">
+                    <span class="sr-only">Kapat</span>
+                    <svg class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
+                    </svg>
+                </button>
+            </div>
+            <div class="mt-2 px-7 py-3">
+                <form id="addStockForm" method="post" action="{% url 'add_stock' %}">
+                    {% csrf_token %}
+                    <div class="mb-4">
+                        <label class="block text-gray-700 text-sm font-bold mb-2">Hisse Adı:</label>
+                        <input type="text" name="name" required class="w-full px-3 py-2 border rounded-lg text-gray-700 focus:outline-none focus:border-blue-500">
+                    </div>
+                    <div class="mb-4">
+                        <label class="block text-gray-700 text-sm font-bold mb-2">Sembol:</label>
+                        <input type="text" name="symbol" required class="w-full px-3 py-2 border rounded-lg text-gray-700 focus:outline-none focus:border-blue-500">
+                    </div>
+                    <div class="mb-4">
+                        <label class="block text-gray-700 text-sm font-bold mb-2">Sektör:</label>
+                        <input type="text" name="sector" class="w-full px-3 py-2 border rounded-lg text-gray-700 focus:outline-none focus:border-blue-500">
+                    </div>
+                    <div class="flex items-center justify-between mt-4">
+                        <button type="button" onclick="closeAddModal()" class="px-4 py-2 bg-gray-300 text-gray-700 rounded-md hover:bg-gray-400 focus:outline-none">
+                            İptal
+                        </button>
+                        <button type="submit" class="px-4 py-2 bg-green-600 text-white rounded-md hover:bg-green-700 focus:outline-none">
+                            Kaydet
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Bildirim -->
+<div id="notification" class="hidden fixed top-4 right-4 px-4 py-2 rounded-lg shadow-lg z-50 transform transition-all duration-300 translate-y-[-100%]">
+    <div class="flex items-center space-x-2">
+        <span id="notificationIcon"></span>
+        <span id="notificationMessage" class="text-sm font-medium"></span>
+    </div>
+</div>
+
 <script>
-function showUploadModal(stockId, symbol) {
-    document.getElementById('uploadModal').classList.remove('hidden');
-    document.getElementById('stockId').value = stockId;
-    document.getElementById('stockSymbol').textContent = symbol;
-}
+    // CSRF token'ı al
+    const csrftoken = document.querySelector('[name=csrfmiddlewaretoken]').value;
 
-function closeUploadModal() {
-    document.getElementById('uploadModal').classList.add('hidden');
-}
+    function showUploadModal(stockId, symbol) {
+        document.getElementById('uploadModal').classList.remove('hidden');
+        document.getElementById('stockId').value = stockId;
+        document.getElementById('stockSymbol').textContent = symbol;
+    }
 
-// Form submit işlemi
-document.getElementById('uploadForm').addEventListener('submit', function(e) {
-    e.preventDefault();
-    
-    const formData = new FormData(this);
-    
-    fetch('{% url "upload_stock_data" %}', {
-        method: 'POST',
-        body: formData
-    })
-    .then(response => response.json())
-    .then(data => {
-        if (data.success) {
-            alert(data.message);
-            closeUploadModal();
-        } else {
-            alert(data.error);
-        }
-    })
-    .catch(error => {
-        alert('Bir hata oluştu: ' + error);
-    });
-});
+    function closeUploadModal() {
+        document.getElementById('uploadModal').classList.add('hidden');
+    }
 
-// Arama işlevi
-document.getElementById('search').addEventListener('input', function(e) {
-    const searchText = e.target.value.toLowerCase();
-    const rows = document.querySelectorAll('tbody tr');
-    
-    rows.forEach(row => {
-        const stockName = row.querySelector('td:first-child').textContent.toLowerCase();
-        const symbol = row.querySelector('td:nth-child(2)').textContent.toLowerCase();
+    // Form submit işlemi
+    document.getElementById('uploadForm').addEventListener('submit', function(e) {
+        e.preventDefault();
         
-        if (stockName.includes(searchText) || symbol.includes(searchText)) {
-            row.style.display = '';
-        } else {
-            row.style.display = 'none';
-        }
+        const formData = new FormData(this);
+        
+        fetch('{% url "upload_stock_data" %}', {
+            method: 'POST',
+            body: formData
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                alert(data.message);
+                closeUploadModal();
+            } else {
+                alert(data.error);
+            }
+        })
+        .catch(error => {
+            alert('Bir hata oluştu: ' + error);
+        });
     });
-});
+
+    function showEditModal(stockId, name, symbol, sector) {
+        document.getElementById('editModal').classList.remove('hidden');
+        document.getElementById('editStockId').value = stockId;
+        document.getElementById('editName').value = name;
+        document.getElementById('editSymbol').value = symbol;
+        document.getElementById('editSector').value = sector || '';
+    }
+
+    function closeEditModal() {
+        document.getElementById('editModal').classList.add('hidden');
+    }
+
+    function toggleStatus(stockId, isActive) {
+        if (confirm(isActive === 'True' ? 'Bu hisseyi pasif yapmak istediğinize emin misiniz?' : 'Bu hisseyi aktif yapmak istediğinize emin misiniz?')) {
+            fetch(`/stocks/toggle-status/${stockId}/`, {
+                method: 'POST',
+                headers: {
+                    'X-CSRFToken': csrftoken,
+                    'Content-Type': 'application/json',
+                }
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    window.location.reload();
+                } else {
+                    alert(data.error || 'Bir hata oluştu.');
+                }
+            })
+            .catch(error => {
+                alert('Bir hata oluştu: ' + error);
+            });
+        }
+    }
+
+    function deleteStock(stockId) {
+        if (confirm('Bu hisseyi silmek istediğinize emin misiniz?')) {
+            fetch(`/stocks/delete/${stockId}/`, {
+                method: 'POST',
+                headers: {
+                    'X-CSRFToken': csrftoken,
+                }
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    window.location.reload();
+                } else {
+                    alert(data.error || 'Bir hata oluştu.');
+                }
+            })
+            .catch(error => {
+                alert('Bir hata oluştu: ' + error);
+            });
+        }
+    }
+
+    // Edit form submit
+    document.getElementById('editForm').addEventListener('submit', function(e) {
+        e.preventDefault();
+        const stockId = document.getElementById('editStockId').value;
+        const formData = new FormData(this);
+        
+        fetch(`/stocks/edit/${stockId}/`, {
+            method: 'POST',
+            headers: {
+                'X-CSRFToken': csrftoken,
+            },
+            body: formData
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                window.location.reload();
+            } else {
+                alert(data.error || 'Düzenleme işlemi başarısız oldu.');
+            }
+        })
+        .catch(error => {
+            alert('Bir hata oluştu: ' + error);
+        });
+    });
+
+    // Arama işlevi
+    document.getElementById('search').addEventListener('input', function(e) {
+        const searchText = e.target.value.toLowerCase();
+        const rows = document.querySelectorAll('tbody tr');
+        
+        rows.forEach(row => {
+            const stockName = row.querySelector('td:first-child').textContent.toLowerCase();
+            const symbol = row.querySelector('td:nth-child(2)').textContent.toLowerCase();
+            
+            if (stockName.includes(searchText) || symbol.includes(searchText)) {
+                row.style.display = '';
+            } else {
+                row.style.display = 'none';
+            }
+        });
+    });
+
+    // Bildirim gösterme fonksiyonu
+    function showNotification(message, type = 'success') {
+        const notification = document.getElementById('notification');
+        const notificationMessage = document.getElementById('notificationMessage');
+        const notificationIcon = document.getElementById('notificationIcon');
+        
+        // Mesajı ayarla
+        notificationMessage.textContent = message;
+        
+        // Tipi ayarla
+        if (type === 'success') {
+            notification.className = 'fixed top-4 right-4 px-4 py-2 rounded-lg shadow-lg z-50 bg-green-100 text-green-800';
+            notificationIcon.innerHTML = '<svg class="w-5 h-5 text-green-400" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clip-rule="evenodd"></path></svg>';
+        } else {
+            notification.className = 'fixed top-4 right-4 px-4 py-2 rounded-lg shadow-lg z-50 bg-red-100 text-red-800';
+            notificationIcon.innerHTML = '<svg class="w-5 h-5 text-red-400" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z" clip-rule="evenodd"></path></svg>';
+        }
+        
+        // Göster
+        notification.classList.remove('hidden');
+        notification.style.transform = 'translateY(0)';
+        
+        // 3 saniye sonra gizle
+        setTimeout(() => {
+            notification.style.transform = 'translateY(-100%)';
+            setTimeout(() => {
+                notification.classList.add('hidden');
+            }, 300);
+        }, 3000);
+    }
+
+    // Yeni Hisse Ekleme Modal İşlemleri
+    function showAddModal() {
+        document.getElementById('addStockModal').classList.remove('hidden');
+    }
+
+    function closeAddModal() {
+        document.getElementById('addStockModal').classList.add('hidden');
+    }
+
+    // Form submit işlemi
+    document.getElementById('addStockForm').addEventListener('submit', function(e) {
+        e.preventDefault();
+        const formData = new FormData(this);
+        
+        fetch('{% url "add_stock" %}', {
+            method: 'POST',
+            headers: {
+                'X-CSRFToken': csrftoken,
+            },
+            body: formData
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                showNotification('Hisse başarıyla eklendi!', 'success');
+                closeAddModal();
+                setTimeout(() => {
+                    window.location.reload();
+                }, 1000);
+            } else {
+                showNotification(data.error || 'Bir hata oluştu!', 'error');
+            }
+        })
+        .catch(error => {
+            showNotification('Bir hata oluştu!', 'error');
+        });
+    });
+
+    // Silme işlemi
+    function deleteStock(stockId) {
+        if (confirm('Bu hisseyi silmek istediğinize emin misiniz?')) {
+            fetch(`/stocks/delete/${stockId}/`, {
+                method: 'POST',
+                headers: {
+                    'X-CSRFToken': csrftoken,
+                }
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    showNotification('Hisse başarıyla silindi!', 'success');
+                    setTimeout(() => {
+                        window.location.reload();
+                    }, 1000);
+                } else {
+                    showNotification(data.error || 'Bir hata oluştu!', 'error');
+                }
+            })
+            .catch(error => {
+                showNotification('Bir hata oluştu!', 'error');
+            });
+        }
+    }
+
+    // Durum değiştirme işlemi
+    function toggleStatus(stockId, isActive) {
+        fetch(`/stocks/toggle-status/${stockId}/`, {
+            method: 'POST',
+            headers: {
+                'X-CSRFToken': csrftoken,
+            }
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                showNotification(isActive === 'True' ? 'Hisse pasif yapıldı!' : 'Hisse aktif yapıldı!', 'success');
+                setTimeout(() => {
+                    window.location.reload();
+                }, 1000);
+            } else {
+                showNotification(data.error || 'Bir hata oluştu!', 'error');
+            }
+        })
+        .catch(error => {
+            showNotification('Bir hata oluştu!', 'error');
+        });
+    }
 </script>
 {% endblock %} 

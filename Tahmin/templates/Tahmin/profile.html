@@ -1,0 +1,31 @@
+{% extends "Tahmin/admin_base.html" %}
+
+{% block content %}
+<div class="max-w-4xl mx-auto">
+    <div class="bg-white shadow rounded-lg">
+        <div class="px-6 py-4 border-b border-gray-200">
+            <h2 class="text-xl font-semibold text-gray-800">Profil Bilgileri</h2>
+        </div>
+        <div class="p-6">
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                <div>
+                    <h3 class="text-sm font-medium text-gray-500">Kullanıcı Adı</h3>
+                    <p class="mt-1 text-lg font-semibold text-gray-900">{{ user.username }}</p>
+                </div>
+                <div>
+                    <h3 class="text-sm font-medium text-gray-500">Rol</h3>
+                    <p class="mt-1 text-lg font-semibold text-gray-900">{{ user_role }}</p>
+                </div>
+                <div>
+                    <h3 class="text-sm font-medium text-gray-500">E-posta</h3>
+                    <p class="mt-1 text-lg font-semibold text-gray-900">{{ user.email|default:"Belirtilmemiş" }}</p>
+                </div>
+                <div>
+                    <h3 class="text-sm font-medium text-gray-500">Son Giriş</h3>
+                    <p class="mt-1 text-lg font-semibold text-gray-900">{{ user.last_login|date:"d.m.Y H:i" }}</p>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %} 

@@ -6,7 +6,7 @@ from django.contrib.auth.decorators import login_required, user_passes_test
 from django.utils import timezone
 from datetime import datetime
 from django.contrib.auth.views import LoginView
-from .models import Stock, StockPrice, StockAnalysis
+from .models import Stock, StockPrice, StockAnalysis, StockFile
 from django.urls import reverse
 from django.http import JsonResponse
 from django.template.loader import render_to_string
@@ -99,57 +99,86 @@ def stock_management(request):
 @user_passes_test(is_staff_user)
 def add_stock(request):
     if request.method == 'POST':
-        name = request.POST.get('name')
-        symbol = request.POST.get('symbol')
-        sector = request.POST.get('sector')
-        description = request.POST.get('description')
-        
-        if not Stock.objects.filter(symbol=symbol).exists():
+        try:
+            name = request.POST.get('name')
+            symbol = request.POST.get('symbol')
+            sector = request.POST.get('sector')
+            
+            if not name or not symbol:
+                return JsonResponse({
+                    'success': False,
+                    'error': 'Hisse adı ve sembol zorunludur!'
+                })
+            
+            if Stock.objects.filter(symbol=symbol.upper()).exists():
+                return JsonResponse({
+                    'success': False,
+                    'error': f'{symbol.upper()} sembolü ile kayıtlı bir hisse zaten mevcut!'
+                })
+            
             Stock.objects.create(
                 name=name,
                 symbol=symbol.upper(),
-                sector=sector,
-                description=description
+                sector=sector
             )
-        return redirect('stock_management')
-    return redirect('stock_management')
+            
+            return JsonResponse({
+                'success': True,
+                'message': 'Hisse başarıyla eklendi.'
+            })
+            
+        except Exception as e:
+            return JsonResponse({
+                'success': False,
+                'error': str(e)
+            })
+    
+    return JsonResponse({
+        'success': False,
+        'error': 'Geçersiz istek metodu'
+    })
 
 @login_required
 @user_passes_test(is_staff_user)
 def edit_stock(request, stock_id):
-    stock = get_object_or_404(Stock, id=stock_id)
-    
     if request.method == 'POST':
-        stock.name = request.POST.get('name')
-        stock.symbol = request.POST.get('symbol').upper()
-        stock.sector = request.POST.get('sector')
-        stock.description = request.POST.get('description')
-        stock.save()
-        return redirect('stock_management')
-    return redirect('stock_management')
+        try:
+            stock = Stock.objects.get(id=stock_id)
+            stock.name = request.POST.get('name')
+            stock.symbol = request.POST.get('symbol')
+            stock.sector = request.POST.get('sector')
+            stock.save()
+            return JsonResponse({'success': True})
+        except Stock.DoesNotExist:
+            return JsonResponse({'success': False, 'error': 'Hisse bulunamadı.'})
+        except Exception as e:
+            return JsonResponse({'success': False, 'error': str(e)})
+    return JsonResponse({'success': False, 'error': 'Geçersiz istek.'})
 
 @login_required
 @user_passes_test(is_staff_user)
 def delete_stock(request, stock_id):
     if request.method == 'POST':
-        stock = get_object_or_404(Stock, id=stock_id)
-        stock.delete()
-        if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
+        try:
+            stock = Stock.objects.get(id=stock_id)
+            stock.delete()
             return JsonResponse({'success': True})
-        return redirect('stock_management')
-    return redirect('stock_management')
+        except Stock.DoesNotExist:
+            return JsonResponse({'success': False, 'error': 'Hisse bulunamadı.'})
+    return JsonResponse({'success': False, 'error': 'Geçersiz istek.'})
 
 @login_required
 @user_passes_test(is_staff_user)
 def toggle_stock_status(request, stock_id):
     if request.method == 'POST':
-        stock = get_object_or_404(Stock, id=stock_id)
-        stock.is_active = not stock.is_active
-        stock.save()
-        if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
+        try:
+            stock = Stock.objects.get(id=stock_id)
+            stock.is_active = not stock.is_active
+            stock.save()
             return JsonResponse({'success': True})
-        return redirect('stock_management')
-    return redirect('stock_management')
+        except Stock.DoesNotExist:
+            return JsonResponse({'success': False, 'error': 'Hisse bulunamadı.'})
+    return JsonResponse({'success': False, 'error': 'Geçersiz istek.'})
 
 @login_required
 @user_passes_test(is_staff_user)
@@ -419,6 +448,251 @@ def process_stock_data(request):
     return JsonResponse({
         'success': False,
         'error': 'Geçersiz istek metodu'
+    })
+
+@login_required
+@user_passes_test(is_staff_user)
+def stock_files(request, stock_id):
+    stock = get_object_or_404(Stock, id=stock_id)
+    files = stock.files.all()
+    return render(request, 'Tahmin/stock_files.html', {
+        'stock': stock,
+        'files': files
+    })
+
+@login_required
+@user_passes_test(is_staff_user)
+def upload_stock_file(request, stock_id):
+    if request.method == 'POST':
+        try:
+            stock = get_object_or_404(Stock, id=stock_id)
+            file = request.FILES.get('file')
+            note = request.POST.get('note')
+            
+            if not file:
+                return JsonResponse({
+                    'success': False,
+                    'error': 'Dosya yüklenmedi!'
+                })
+            
+            # Dosya uzantısını kontrol et
+            file_extension = file.name.split('.')[-1].lower()
+            if file_extension not in ['csv', 'xlsx']:
+                return JsonResponse({
+                    'success': False,
+                    'error': 'Sadece CSV ve Excel dosyaları desteklenmektedir!'
+                })
+            
+            # Dosyayı kaydet
+            try:
+                # Ana dizini oluştur
+                base_upload_dir = os.path.join('uploads', 'stock_data')
+                if not os.path.exists(base_upload_dir):
+                    os.makedirs(base_upload_dir)
+                
+                # Hisse için özel klasör oluştur
+                stock_upload_dir = os.path.join(base_upload_dir, stock.symbol)
+                if not os.path.exists(stock_upload_dir):
+                    os.makedirs(stock_upload_dir)
+                
+                # Dosya adını oluştur: YYYY-MM-DD_HHMMSS.extension
+                timestamp = timezone.now().strftime('%Y-%m-%d_%H%M%S')
+                filename = f"{timestamp}.{file_extension}"
+                
+                # Dosya yolunu oluştur
+                file_path = os.path.join(stock_upload_dir, filename)
+                
+                # Dosyayı kaydet
+                with open(file_path, 'wb+') as destination:
+                    for chunk in file.chunks():
+                        destination.write(chunk)
+                
+                # Veritabanına kaydet
+                stock_file = StockFile.objects.create(
+                    stock=stock,
+                    filename=filename,
+                    file_path=file_path,
+                    note=note,
+                    uploaded_by=request.user
+                )
+                
+                return JsonResponse({
+                    'success': True,
+                    'message': 'Dosya başarıyla yüklendi.',
+                    'file_id': stock_file.id
+                })
+                    
+            except Exception as e:
+                return JsonResponse({
+                    'success': False,
+                    'error': f'Dosya kaydetme hatası: {str(e)}'
+                })
+            
+        except Exception as e:
+            return JsonResponse({
+                'success': False,
+                'error': str(e)
+            })
+    
+    return JsonResponse({
+        'success': False,
+        'error': 'Geçersiz istek metodu'
+    })
+
+@login_required
+@user_passes_test(is_staff_user)
+def update_file_note(request, file_id):
+    if request.method == 'POST':
+        try:
+            stock_file = get_object_or_404(StockFile, id=file_id)
+            note = request.POST.get('note')
+            
+            stock_file.note = note
+            stock_file.save()
+            
+            return JsonResponse({
+                'success': True,
+                'message': 'Not başarıyla güncellendi.'
+            })
+            
+        except Exception as e:
+            return JsonResponse({
+                'success': False,
+                'error': str(e)
+            })
+    
+    return JsonResponse({
+        'success': False,
+        'error': 'Geçersiz istek metodu'
+    })
+
+@login_required
+@user_passes_test(is_staff_user)
+def delete_file(request, file_id):
+    if request.method == 'POST':
+        try:
+            stock_file = get_object_or_404(StockFile, id=file_id)
+            
+            # Dosyayı diskten sil
+            if os.path.exists(stock_file.file_path):
+                os.remove(stock_file.file_path)
+            
+            # Veritabanından sil
+            stock_file.delete()
+            
+            return JsonResponse({
+                'success': True,
+                'message': 'Dosya başarıyla silindi.'
+            })
+            
+        except Exception as e:
+            return JsonResponse({
+                'success': False,
+                'error': str(e)
+            })
+    
+    return JsonResponse({
+        'success': False,
+        'error': 'Geçersiz istek metodu'
+    })
+
+@login_required
+@user_passes_test(is_staff_user)
+def process_file(request, file_id):
+    if request.method == 'POST':
+        try:
+            stock_file = get_object_or_404(StockFile, id=file_id)
+            
+            if stock_file.is_processed:
+                return JsonResponse({
+                    'success': False,
+                    'error': 'Bu dosya zaten işlenmiş!'
+                })
+            
+            if not os.path.exists(stock_file.file_path):
+                return JsonResponse({
+                    'success': False,
+                    'error': 'Dosya bulunamadı!'
+                })
+            
+            try:
+                # CSV dosyasını oku
+                df = pd.read_csv(stock_file.file_path, 
+                               encoding='utf-8',
+                               thousands='.',  # Binlik ayracı
+                               decimal=',',    # Ondalık ayracı
+                               header=None,    # Başlık satırı yok
+                               names=['date', 'opening_price', 'closing_price', 'highest_price', 'lowest_price', 'volume', 'change'])
+                
+                # Tarih sütununu düzenle
+                df['date'] = pd.to_datetime(df['date'], format='%d.%m.%Y')
+                
+                # Hacim sütunundaki 'M' harfini temizle ve sayıya çevir
+                df['volume'] = df['volume'].str.replace('M', '').astype(float) * 1_000_000
+                
+                # Fiyat sütunlarındaki tırnak işaretlerini temizle
+                price_columns = ['opening_price', 'closing_price', 'highest_price', 'lowest_price']
+                for col in price_columns:
+                    df[col] = df[col].str.replace('"', '')
+                
+                success_count = 0
+                error_count = 0
+                
+                for _, row in df.iterrows():
+                    try:
+                        # Aynı tarihte kayıt var mı kontrol et
+                        if StockPrice.objects.filter(stock=stock_file.stock, date=row['date'].date()).exists():
+                            error_count += 1
+                            continue
+                        
+                        # Veriyi kaydet
+                        StockPrice.objects.create(
+                            stock=stock_file.stock,
+                            date=row['date'].date(),
+                            opening_price=float(row['opening_price']),
+                            closing_price=float(row['closing_price']),
+                            highest_price=float(row['highest_price']),
+                            lowest_price=float(row['lowest_price']),
+                            volume=int(row['volume']),
+                            daily_change=float(row['change'].str.replace('%', ''))
+                        )
+                        success_count += 1
+                        
+                    except Exception as e:
+                        error_count += 1
+                        continue
+                
+                # Dosyayı işlenmiş olarak işaretle
+                stock_file.is_processed = True
+                stock_file.save()
+                
+                return JsonResponse({
+                    'success': True,
+                    'message': f'{success_count} kayıt başarıyla eklendi. {error_count} kayıt eklenemedi.'
+                })
+                
+            except Exception as e:
+                return JsonResponse({
+                    'success': False,
+                    'error': f'Veri işleme hatası: {str(e)}'
+                })
+            
+        except Exception as e:
+            return JsonResponse({
+                'success': False,
+                'error': str(e)
+            })
+    
+    return JsonResponse({
+        'success': False,
+        'error': 'Geçersiz istek metodu'
+    })
+
+@login_required
+def profile_view(request):
+    return render(request, 'Tahmin/profile.html', {
+        'user': request.user,
+        'user_role': 'Yetkili Kullanıcı' if request.user.is_staff else 'Normal Kullanıcı'
     })
 
 
