@@ -18,19 +18,16 @@
 
     <!-- Butonlar -->
     <div class="flex justify-between items-center mb-6">
-        <div class="flex space-x-4">
-            <button onclick="showAddModal()" class="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md text-white bg-green-600 hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-green-500">
-                <svg class="mr-2 h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6v6m0 0v6m0-6h6m-6 0H6"/>
-                </svg>
-                Yeni Hisse Ekle
+        <div class="d-flex gap-2">
+            <button onclick="showAddModal()" class="btn btn-success" id="addStockBtn">
+                <i class="fas fa-plus"></i> Yeni Hisse Ekle
             </button>
-            <a href="{% url 'bulk_add_stock_prices' %}" class="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500">
-                <svg class="mr-2 h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 13h6m-3-3v6m5 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/>
-                </svg>
-                Toplu Fiyat Ekle
-            </a>
+            <button onclick="showBulkUploadModal()" class="btn btn-primary" id="bulkAddPricesBtn">
+                <i class="fas fa-file-upload"></i> Toplu Fiyat Ekle
+            </button>
+            <button onclick="showConfirmationModal()" class="btn btn-warning" id="processAllFilesBtn">
+                <i class="fas fa-cogs"></i> Tamamını İşle
+            </button>
         </div>
         <div class="relative">
             <input type="text" id="search" placeholder="Hisse ara..." class="w-64 px-4 py-2 rounded-lg border border-gray-300 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500">
@@ -203,109 +200,200 @@
 </div>
 
 <!-- Bildirim -->
-<div id="notification" class="hidden fixed top-4 right-4 px-4 py-2 rounded-lg shadow-lg z-50 transform transition-all duration-300 translate-y-[-100%]">
-    <div class="flex items-center space-x-2">
-        <span id="notificationIcon"></span>
-        <span id="notificationMessage" class="text-sm font-medium"></span>
+<div id="notification" class="hidden fixed top-4 right-4 max-w-sm w-full bg-white rounded-lg shadow-lg z-50 transform transition-all duration-300 translate-y-[-100%]">
+    <div class="p-4">
+        <div class="flex items-start">
+            <div id="notificationIcon" class="flex-shrink-0"></div>
+            <div class="ml-3 w-0 flex-1">
+                <p id="notificationMessage" class="text-sm font-medium text-gray-900"></p>
+            </div>
+            <div class="ml-4 flex-shrink-0 flex">
+                <button onclick="hideNotification()" class="inline-flex text-gray-400 hover:text-gray-500">
+                    <span class="sr-only">Kapat</span>
+                    <svg class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
+                    </svg>
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- İşlem Durumu Modal -->
+<div id="processingModal" class="hidden fixed inset-0 bg-gray-600 bg-opacity-50 overflow-y-auto h-full w-full z-50">
+    <div class="relative top-20 mx-auto p-5 border w-[800px] shadow-lg rounded-md bg-white">
+        <div class="mt-3">
+            <div class="flex items-center justify-between mb-4">
+                <h3 class="text-lg leading-6 font-medium text-gray-900">Toplu İşleme Durumu</h3>
+                <div id="processingStatus" class="flex items-center">
+                    <div id="processingSpinner" class="animate-spin rounded-full h-5 w-5 border-b-2 border-blue-500 mr-2"></div>
+                    <span id="currentProcessing" class="text-blue-500">Başlatılıyor...</span>
+                </div>
+            </div>
+            <div class="mt-2 px-7 py-3">
+                <div id="processingSteps" class="space-y-4">
+                    <!-- İşlem adımları buraya dinamik olarak eklenecek -->
+                </div>
+            </div>
+            <div id="processingComplete" class="hidden mt-4">
+                <div class="text-center">
+                    <div class="flex items-center justify-center text-green-500 mb-2">
+                        <svg class="w-12 h-12" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path>
+                        </svg>
+                    </div>
+                    <p class="text-lg font-medium text-green-600">İşlem Tamamlandı!</p>
+                    <p id="processingStats" class="text-sm text-gray-600 mt-2"></p>
+                </div>
+                <div class="mt-4 border-t pt-4">
+                    <h4 class="font-medium text-gray-900 mb-2">İşlem Özeti:</h4>
+                    <div id="processingDetails" class="space-y-2 max-h-60 overflow-y-auto"></div>
+                </div>
+                <div class="mt-4 text-center">
+                    <button onclick="closeProcessingModal()" class="px-4 py-2 bg-green-500 text-white rounded-md hover:bg-green-600 focus:outline-none">
+                        Kapat
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Onay Modalı -->
+<div id="confirmationModal" class="hidden fixed inset-0 bg-gray-600 bg-opacity-50 overflow-y-auto h-full w-full z-50">
+    <div class="relative top-20 mx-auto p-5 border w-96 shadow-lg rounded-md bg-white">
+        <div class="mt-3">
+            <div class="flex items-center justify-center mb-4">
+                <div class="flex-shrink-0 mx-auto">
+                    <svg class="h-12 w-12 text-blue-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/>
+                    </svg>
+                </div>
+            </div>
+            <div class="text-center">
+                <h3 class="text-lg leading-6 font-medium text-gray-900 mb-2">İşlem Onayı</h3>
+                <div class="mt-2 px-7 py-3">
+                    <p class="text-sm text-gray-500">
+                        Tüm işlenmemiş dosyaları işlemek istediğinizden emin misiniz?
+                    </p>
+                </div>
+                <div class="flex justify-center gap-4 mt-3">
+                    <button id="confirmCancel" class="px-4 py-2 bg-gray-300 text-gray-700 rounded-md hover:bg-gray-400 focus:outline-none">
+                        İptal
+                    </button>
+                    <button id="confirmOk" class="px-4 py-2 bg-blue-500 text-white rounded-md hover:bg-blue-600 focus:outline-none">
+                        Devam Et
+                    </button>
+                </div>
+            </div>
+        </div>
     </div>
 </div>
 
 <script>
-    // CSRF token'ı al
-    const csrftoken = document.querySelector('[name=csrfmiddlewaretoken]').value;
-
-    function showUploadModal(stockId, symbol) {
-        document.getElementById('uploadModal').classList.remove('hidden');
-        document.getElementById('stockId').value = stockId;
-        document.getElementById('stockSymbol').textContent = symbol;
+    // Modal işlemleri için fonksiyonlar
+    function showAddModal() {
+        document.getElementById('addStockModal').classList.remove('hidden');
     }
 
-    function closeUploadModal() {
-        document.getElementById('uploadModal').classList.add('hidden');
+    function closeAddModal() {
+        document.getElementById('addStockModal').classList.add('hidden');
     }
-
-    // Form submit işlemi
-    document.getElementById('uploadForm').addEventListener('submit', function(e) {
-        e.preventDefault();
-        
-        const formData = new FormData(this);
-        
-        fetch('{% url "upload_stock_data" %}', {
-            method: 'POST',
-            body: formData
-        })
-        .then(response => response.json())
-        .then(data => {
-            if (data.success) {
-                alert(data.message);
-                closeUploadModal();
-            } else {
-                alert(data.error);
-            }
-        })
-        .catch(error => {
-            alert('Bir hata oluştu: ' + error);
-        });
-    });
 
     function showEditModal(stockId, name, symbol, sector) {
-        document.getElementById('editModal').classList.remove('hidden');
         document.getElementById('editStockId').value = stockId;
         document.getElementById('editName').value = name;
         document.getElementById('editSymbol').value = symbol;
-        document.getElementById('editSector').value = sector || '';
+        document.getElementById('editSector').value = sector;
+        document.getElementById('editModal').classList.remove('hidden');
     }
 
     function closeEditModal() {
         document.getElementById('editModal').classList.add('hidden');
     }
 
-    function toggleStatus(stockId, isActive) {
-        if (confirm(isActive === 'True' ? 'Bu hisseyi pasif yapmak istediğinize emin misiniz?' : 'Bu hisseyi aktif yapmak istediğinize emin misiniz?')) {
-            fetch(`/stocks/toggle-status/${stockId}/`, {
-                method: 'POST',
-                headers: {
-                    'X-CSRFToken': csrftoken,
-                    'Content-Type': 'application/json',
-                }
-            })
-            .then(response => response.json())
-            .then(data => {
-                if (data.success) {
-                    window.location.reload();
-                } else {
-                    alert(data.error || 'Bir hata oluştu.');
-                }
-            })
-            .catch(error => {
-                alert('Bir hata oluştu: ' + error);
-            });
-        }
+    function showBulkUploadModal() {
+        window.location.href = "{% url 'bulk_add_stock_prices' %}";
     }
 
+    function closeUploadModal() {
+        document.getElementById('uploadModal').classList.add('hidden');
+    }
+
+    // Hisse işlemleri için fonksiyonlar
     function deleteStock(stockId) {
-        if (confirm('Bu hisseyi silmek istediğinize emin misiniz?')) {
+        if (confirm('Bu hisseyi silmek istediğinizden emin misiniz?')) {
             fetch(`/stocks/delete/${stockId}/`, {
                 method: 'POST',
                 headers: {
-                    'X-CSRFToken': csrftoken,
-                }
+                    'X-CSRFToken': document.querySelector('[name=csrfmiddlewaretoken]').value,
+                },
             })
             .then(response => response.json())
             .then(data => {
                 if (data.success) {
-                    window.location.reload();
+                    showNotification('Hisse başarıyla silindi!', 'success');
+                    setTimeout(() => {
+                        location.reload();
+                    }, 1000);
                 } else {
-                    alert(data.error || 'Bir hata oluştu.');
+                    showNotification(data.error || 'Silme işlemi başarısız oldu!', 'error');
                 }
             })
             .catch(error => {
-                alert('Bir hata oluştu: ' + error);
+                showNotification('Bir hata oluştu!', 'error');
             });
         }
     }
 
-    // Edit form submit
+    function toggleStatus(stockId, isActive) {
+        fetch(`/stocks/toggle-status/${stockId}/`, {
+            method: 'POST',
+            headers: {
+                'X-CSRFToken': document.querySelector('[name=csrfmiddlewaretoken]').value,
+            },
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                showNotification(isActive === 'True' ? 'Hisse pasif yapıldı!' : 'Hisse aktif yapıldı!', 'success');
+                setTimeout(() => {
+                    location.reload();
+                }, 1000);
+            } else {
+                showNotification(data.error || 'Durum değiştirme işlemi başarısız oldu!', 'error');
+            }
+        })
+        .catch(error => {
+            showNotification('Bir hata oluştu!', 'error');
+        });
+    }
+
+    // Form submit işlemleri
+    document.getElementById('addStockForm').addEventListener('submit', function(e) {
+        e.preventDefault();
+        const formData = new FormData(this);
+        
+        fetch('/stocks/add/', {
+            method: 'POST',
+            body: formData,
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                showNotification('Hisse başarıyla eklendi!', 'success');
+                setTimeout(() => {
+                    location.reload();
+                }, 1000);
+            } else {
+                showNotification(data.error, 'error');
+            }
+        })
+        .catch(error => {
+            showNotification('Bir hata oluştu!', 'error');
+        });
+    });
+
     document.getElementById('editForm').addEventListener('submit', function(e) {
         e.preventDefault();
         const stockId = document.getElementById('editStockId').value;
@@ -313,17 +401,14 @@
         
         fetch(`/stocks/edit/${stockId}/`, {
             method: 'POST',
-            headers: {
-                'X-CSRFToken': csrftoken,
-            },
-            body: formData
+            body: formData,
         })
         .then(response => response.json())
         .then(data => {
             if (data.success) {
-                window.location.reload();
+                location.reload();
             } else {
-                alert(data.error || 'Düzenleme işlemi başarısız oldu.');
+                alert('Hisse düzenlenirken bir hata oluştu: ' + data.error);
             }
         })
         .catch(error => {
@@ -337,10 +422,11 @@
         const rows = document.querySelectorAll('tbody tr');
         
         rows.forEach(row => {
-            const stockName = row.querySelector('td:first-child').textContent.toLowerCase();
+            const name = row.querySelector('td:first-child').textContent.toLowerCase();
             const symbol = row.querySelector('td:nth-child(2)').textContent.toLowerCase();
+            const sector = row.querySelector('td:nth-child(3)').textContent.toLowerCase();
             
-            if (stockName.includes(searchText) || symbol.includes(searchText)) {
+            if (name.includes(searchText) || symbol.includes(searchText) || sector.includes(searchText)) {
                 row.style.display = '';
             } else {
                 row.style.display = 'none';
@@ -348,123 +434,204 @@
         });
     });
 
-    // Bildirim gösterme fonksiyonu
+    // Toplu işlem onay modalı
+    function showConfirmationModal() {
+        document.getElementById('confirmationModal').classList.remove('hidden');
+    }
+
+    function closeConfirmationModal() {
+        document.getElementById('confirmationModal').classList.add('hidden');
+    }
+
+    // Onay butonlarına event listener ekle
+    document.getElementById('confirmCancel').addEventListener('click', function() {
+        closeConfirmationModal();
+    });
+
+    document.getElementById('confirmOk').addEventListener('click', function() {
+        closeConfirmationModal();
+        // İşlem modalını göster
+        document.getElementById('processingModal').classList.remove('hidden');
+        document.getElementById('currentProcessing').textContent = 'Başlatılıyor...';
+        
+        processAllFiles();
+    });
+
+    function processAllFiles() {
+        // İşlem modalını göster
+        const processingModal = document.getElementById('processingModal');
+        const processingSteps = document.getElementById('processingSteps');
+        const processingComplete = document.getElementById('processingComplete');
+        const currentProcessing = document.getElementById('currentProcessing');
+        
+        processingModal.classList.remove('hidden');
+        processingComplete.classList.add('hidden');
+        processingSteps.innerHTML = '';
+        currentProcessing.textContent = 'Başlatılıyor...';
+
+        fetch('/api/process-all-files/', {
+            method: 'POST',
+            headers: {
+                'X-CSRFToken': document.querySelector('[name=csrfmiddlewaretoken]').value,
+            },
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                let totalSuccess = 0;
+                let totalError = 0;
+
+                // Her bir hisse için işlem durumunu göster
+                data.results.forEach(result => {
+                    if (result.status === 'success') {
+                        totalSuccess++;
+                        const details = `Toplam: ${result.total_rows} | Başarılı: ${result.success_count} | Hatalı: ${result.error_count} | Zaten Mevcut: ${result.duplicate_count}`;
+                        updateProcessingStep(result.stock, 'success', details);
+                    } else {
+                        totalError++;
+                        updateProcessingStep(result.stock, 'error', result.message);
+                    }
+                });
+
+                // İşlem tamamlandı göstergesini göster
+                document.getElementById('processingStatus').classList.add('hidden');
+                processingComplete.classList.remove('hidden');
+
+                // İstatistikleri göster
+                const totalFiles = data.results.length;
+                const successRate = ((totalSuccess / totalFiles) * 100).toFixed(1);
+                document.getElementById('processingStats').innerHTML = `
+                    <div class="grid grid-cols-2 gap-4 text-center">
+                        <div class="bg-gray-50 p-2 rounded">
+                            <div class="text-2xl font-bold text-gray-700">${totalFiles}</div>
+                            <div class="text-sm text-gray-500">Toplam Dosya</div>
+                        </div>
+                        <div class="bg-green-50 p-2 rounded">
+                            <div class="text-2xl font-bold text-green-600">${totalSuccess}</div>
+                            <div class="text-sm text-green-500">Başarılı</div>
+                        </div>
+                        <div class="bg-red-50 p-2 rounded">
+                            <div class="text-2xl font-bold text-red-600">${totalError}</div>
+                            <div class="text-sm text-red-500">Başarısız</div>
+                        </div>
+                        <div class="bg-blue-50 p-2 rounded">
+                            <div class="text-2xl font-bold text-blue-600">%${successRate}</div>
+                            <div class="text-sm text-blue-500">Başarı Oranı</div>
+                        </div>
+                    </div>
+                `;
+
+                showNotification('Tüm dosyalar işlendi!', 'success');
+            } else {
+                updateProcessingStep('Sistem', 'error', data.error || 'İşlem sırasında bir hata oluştu!');
+                showNotification(data.error || 'İşlem sırasında bir hata oluştu!', 'error');
+            }
+        })
+        .catch(error => {
+            updateProcessingStep('Sistem', 'error', 'Bir hata oluştu: ' + error);
+            showNotification('Bir hata oluştu!', 'error');
+        });
+    }
+
+    // İşlem adımı ekle veya güncelle
+    function updateProcessingStep(stock, status, details = '') {
+        const stepsContainer = document.getElementById('processingSteps');
+        let stepElement = document.getElementById(`step-${stock}`);
+        
+        if (!stepElement) {
+            stepElement = document.createElement('div');
+            stepElement.id = `step-${stock}`;
+            stepElement.className = 'flex items-center p-3 border rounded-lg bg-white';
+            stepsContainer.insertBefore(stepElement, stepsContainer.firstChild);
+        }
+        
+        let statusIcon = '';
+        let statusClass = '';
+        let statusText = '';
+        let bgClass = '';
+        
+        switch(status) {
+            case 'processing':
+                statusIcon = '<div class="animate-spin rounded-full h-4 w-4 border-b-2 border-blue-500"></div>';
+                statusClass = 'text-blue-500';
+                statusText = 'İşleniyor';
+                bgClass = 'bg-blue-50';
+                break;
+            case 'success':
+                statusIcon = '<svg class="w-5 h-5 text-green-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path></svg>';
+                statusClass = 'text-green-500';
+                statusText = 'Başarılı';
+                bgClass = 'bg-green-50';
+                break;
+            case 'error':
+                statusIcon = '<svg class="w-5 h-5 text-red-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path></svg>';
+                statusClass = 'text-red-500';
+                statusText = 'Başarısız';
+                bgClass = 'bg-red-50';
+                break;
+        }
+        
+        stepElement.className = `flex items-center p-3 border rounded-lg ${bgClass} transition-all duration-300`;
+        stepElement.innerHTML = `
+            <div class="flex-shrink-0 mr-3">${statusIcon}</div>
+            <div class="flex-grow">
+                <div class="flex items-center justify-between">
+                    <p class="font-medium">${stock}</p>
+                    <span class="text-sm ${statusClass} font-medium">${statusText}</span>
+                </div>
+                ${details ? `<p class="text-sm text-gray-500 mt-1">${details}</p>` : ''}
+            </div>
+        `;
+
+        // İşlenen dosyayı current processing olarak göster
+        if (status === 'processing') {
+            document.getElementById('currentProcessing').textContent = `${stock} işleniyor...`;
+        }
+    }
+
+    // İşlem modalını kapatma fonksiyonu
+    function closeProcessingModal() {
+        document.getElementById('processingModal').classList.add('hidden');
+    }
+
+    // Bildirim işlemleri
     function showNotification(message, type = 'success') {
         const notification = document.getElementById('notification');
         const notificationMessage = document.getElementById('notificationMessage');
         const notificationIcon = document.getElementById('notificationIcon');
         
-        // Mesajı ayarla
         notificationMessage.textContent = message;
         
-        // Tipi ayarla
         if (type === 'success') {
-            notification.className = 'fixed top-4 right-4 px-4 py-2 rounded-lg shadow-lg z-50 bg-green-100 text-green-800';
-            notificationIcon.innerHTML = '<svg class="w-5 h-5 text-green-400" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clip-rule="evenodd"></path></svg>';
+            notificationIcon.innerHTML = `
+                <div class="flex items-center justify-center w-8 h-8 bg-green-100 rounded-full">
+                    <svg class="w-5 h-5 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path>
+                    </svg>
+                </div>`;
         } else {
-            notification.className = 'fixed top-4 right-4 px-4 py-2 rounded-lg shadow-lg z-50 bg-red-100 text-red-800';
-            notificationIcon.innerHTML = '<svg class="w-5 h-5 text-red-400" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z" clip-rule="evenodd"></path></svg>';
+            notificationIcon.innerHTML = `
+                <div class="flex items-center justify-center w-8 h-8 bg-red-100 rounded-full">
+                    <svg class="w-5 h-5 text-red-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
+                    </svg>
+                </div>`;
         }
         
-        // Göster
         notification.classList.remove('hidden');
         notification.style.transform = 'translateY(0)';
         
-        // 3 saniye sonra gizle
         setTimeout(() => {
-            notification.style.transform = 'translateY(-100%)';
-            setTimeout(() => {
-                notification.classList.add('hidden');
-            }, 300);
+            hideNotification();
         }, 3000);
     }
 
-    // Yeni Hisse Ekleme Modal İşlemleri
-    function showAddModal() {
-        document.getElementById('addStockModal').classList.remove('hidden');
-    }
-
-    function closeAddModal() {
-        document.getElementById('addStockModal').classList.add('hidden');
-    }
-
-    // Form submit işlemi
-    document.getElementById('addStockForm').addEventListener('submit', function(e) {
-        e.preventDefault();
-        const formData = new FormData(this);
-        
-        fetch('{% url "add_stock" %}', {
-            method: 'POST',
-            headers: {
-                'X-CSRFToken': csrftoken,
-            },
-            body: formData
-        })
-        .then(response => response.json())
-        .then(data => {
-            if (data.success) {
-                showNotification('Hisse başarıyla eklendi!', 'success');
-                closeAddModal();
-                setTimeout(() => {
-                    window.location.reload();
-                }, 1000);
-            } else {
-                showNotification(data.error || 'Bir hata oluştu!', 'error');
-            }
-        })
-        .catch(error => {
-            showNotification('Bir hata oluştu!', 'error');
-        });
-    });
-
-    // Silme işlemi
-    function deleteStock(stockId) {
-        if (confirm('Bu hisseyi silmek istediğinize emin misiniz?')) {
-            fetch(`/stocks/delete/${stockId}/`, {
-                method: 'POST',
-                headers: {
-                    'X-CSRFToken': csrftoken,
-                }
-            })
-            .then(response => response.json())
-            .then(data => {
-                if (data.success) {
-                    showNotification('Hisse başarıyla silindi!', 'success');
-                    setTimeout(() => {
-                        window.location.reload();
-                    }, 1000);
-                } else {
-                    showNotification(data.error || 'Bir hata oluştu!', 'error');
-                }
-            })
-            .catch(error => {
-                showNotification('Bir hata oluştu!', 'error');
-            });
-        }
-    }
-
-    // Durum değiştirme işlemi
-    function toggleStatus(stockId, isActive) {
-        fetch(`/stocks/toggle-status/${stockId}/`, {
-            method: 'POST',
-            headers: {
-                'X-CSRFToken': csrftoken,
-            }
-        })
-        .then(response => response.json())
-        .then(data => {
-            if (data.success) {
-                showNotification(isActive === 'True' ? 'Hisse pasif yapıldı!' : 'Hisse aktif yapıldı!', 'success');
-                setTimeout(() => {
-                    window.location.reload();
-                }, 1000);
-            } else {
-                showNotification(data.error || 'Bir hata oluştu!', 'error');
-            }
-        })
-        .catch(error => {
-            showNotification('Bir hata oluştu!', 'error');
-        });
+    function hideNotification() {
+        const notification = document.getElementById('notification');
+        notification.style.transform = 'translateY(-100%)';
+        setTimeout(() => {
+            notification.classList.add('hidden');
+        }, 300);
     }
 </script>
 {% endblock %} 

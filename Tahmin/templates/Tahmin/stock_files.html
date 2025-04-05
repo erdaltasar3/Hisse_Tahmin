@@ -42,31 +42,32 @@
                     </td>
                     <td class="px-6 py-4 whitespace-nowrap">
                         {% if file.is_processed %}
-                        <span class="processing-status success">
+                        <span class="inline-flex items-center">
                             <svg class="mr-1.5 h-4 w-4 text-green-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path>
                             </svg>
-                            İşlendi
+                            <span class="text-green-800">İşlendi</span>
+                            <button onclick="showReport('{{ file.id }}')" class="ml-2 text-xs bg-blue-100 text-blue-800 px-2 py-0.5 rounded-full hover:bg-blue-200">
+                                Rapor
+                            </button>
                         </span>
                         {% else %}
-                        <span id="status-{{ file.id }}" class="processing-status">
-                            <svg id="spinner-{{ file.id }}" class="hidden mr-1.5 h-4 w-4 text-yellow-500 animate-spin" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
-                                <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                        <span id="status-{{ file.id }}" class="inline-flex items-center">
+                            <svg class="mr-1.5 h-4 w-4 text-yellow-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"></path>
                             </svg>
-                            <span id="status-text-{{ file.id }}" class="inline-flex items-center">
-                                <svg class="mr-1.5 h-4 w-4 text-yellow-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"></path>
-                                </svg>
-                                Bekliyor
-                            </span>
+                            <span class="text-yellow-800">Bekliyor</span>
                         </span>
                         {% endif %}
                     </td>
                     <td class="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
                         <div class="flex justify-end items-center space-x-2">
-                            {% if not file.is_processed %}
-                            <button onclick="processFile('{{ file.id }}')" class="text-white bg-blue-600 hover:bg-blue-700 px-3 py-1 rounded-md text-sm font-medium focus:outline-none">
+                            {% if file.is_processed %}
+                            <button onclick="processFile('{{ file.id }}', this)" class="text-white bg-yellow-600 hover:bg-yellow-700 px-3 py-1 rounded-md text-sm font-medium focus:outline-none">
+                                Yeniden İşle
+                            </button>
+                            {% else %}
+                            <button onclick="processFile('{{ file.id }}', this)" class="text-white bg-blue-600 hover:bg-blue-700 px-3 py-1 rounded-md text-sm font-medium focus:outline-none">
                                 İşle
                             </button>
                             {% endif %}
@@ -148,6 +149,52 @@
                     </div>
                 </form>
             </div>
+        </div>
+    </div>
+</div>
+
+<!-- Rapor Modal -->
+<div id="reportModal" class="fixed inset-0 bg-gray-600 bg-opacity-50 overflow-y-auto h-full w-full hidden">
+    <div class="relative top-20 mx-auto p-5 border w-96 shadow-lg rounded-md bg-white">
+        <div class="mt-3">
+            <h3 class="text-lg leading-6 font-medium text-gray-900 mb-4">İşleme Raporu</h3>
+            <div class="mt-2 text-sm text-gray-500">
+                <div class="mb-4">
+                    <p class="font-medium text-gray-700">Dosya Adı:</p>
+                    <p id="fileName" class="mt-1"></p>
+                </div>
+                <div class="mb-4">
+                    <p class="font-medium text-gray-700">İşlenme Tarihi:</p>
+                    <p id="processedAt" class="mt-1"></p>
+                </div>
+                <div class="grid grid-cols-2 gap-4 mb-4">
+                    <div>
+                        <p class="font-medium text-gray-700">Toplam Satır:</p>
+                        <p id="totalRows" class="mt-1"></p>
+                    </div>
+                    <div>
+                        <p class="font-medium text-gray-700">Başarılı İşlem:</p>
+                        <p id="successCount" class="mt-1 text-green-600"></p>
+                    </div>
+                    <div>
+                        <p class="font-medium text-gray-700">Başarı Oranı:</p>
+                        <p id="processedRatio" class="mt-1 text-green-600"></p>
+                    </div>
+                    <div>
+                        <p class="font-medium text-gray-700">Hata Oranı:</p>
+                        <p id="errorRatio" class="mt-1 text-red-600"></p>
+                    </div>
+                </div>
+                <div class="mb-4" id="errorSection">
+                    <p class="font-medium text-gray-700">Hata Detayları:</p>
+                    <div id="errorDetails" class="mt-2 text-sm text-red-600 max-h-40 overflow-y-auto"></div>
+                </div>
+            </div>
+        </div>
+        <div class="items-center px-4 py-3">
+            <button id="closeReportModal" class="px-4 py-2 bg-gray-500 text-white text-base font-medium rounded-md w-full shadow-sm hover:bg-gray-600 focus:outline-none focus:ring-2 focus:ring-gray-300">
+                Kapat
+            </button>
         </div>
     </div>
 </div>
@@ -313,40 +360,76 @@ function updateProcessingStatus(fileId, status, errorMessage = '') {
     }
 }
 
-function processFile(fileId) {
-    // İşlem başladığında durumu güncelle
-    updateProcessingStatus(fileId, 'processing');
+function processFile(fileId, button) {
+    const row = button.closest('tr');
+    const statusCell = row.querySelector('td:nth-child(4)'); // Durum sütunu
+    const actionsCell = row.querySelector('td:nth-child(5)'); // İşlemler sütunu
+    const originalStatusContent = statusCell.innerHTML;
+    const originalActionsContent = actionsCell.innerHTML;
     
-    // URL'yi düzelt ve CSRF token ekle
+    // Yükleniyor durumunu göster
+    statusCell.innerHTML = `
+        <span class="inline-flex items-center">
+            <svg class="animate-spin h-4 w-4 text-yellow-500 mr-2" fill="none" viewBox="0 0 24 24">
+                <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+            </svg>
+            <span class="text-yellow-800">İşleniyor...</span>
+        </span>
+    `;
+    
     fetch(`/api/process-file/${fileId}/`, {
         method: 'POST',
         headers: {
-            'X-CSRFToken': csrftoken,
+            'X-CSRFToken': document.querySelector('[name=csrfmiddlewaretoken]').value,
             'Content-Type': 'application/json'
         },
         credentials: 'same-origin'
     })
-    .then(response => response.json())
+    .then(response => {
+        if (!response.ok) {
+            throw new Error('Network response was not ok');
+        }
+        return response.json();
+    })
     .then(data => {
         if (data.success) {
-            updateProcessingStatus(fileId, 'success');
-            showNotification(data.message, 'success');
-            // Başarılı durumda sayfayı yenile
-            setTimeout(() => {
-                window.location.reload();
-            }, 3000);
+            showNotification('success', data.message);
+            // Başarılı durumu göster
+            statusCell.innerHTML = `
+                <span class="inline-flex items-center">
+                    <svg class="mr-1.5 h-4 w-4 text-green-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path>
+                    </svg>
+                    <span class="text-green-800">İşlendi</span>
+                    <button onclick="showReport('${fileId}')" class="ml-2 text-xs bg-blue-100 text-blue-800 px-2 py-0.5 rounded-full hover:bg-blue-200">
+                        Rapor
+                    </button>
+                </span>
+            `;
+            // İşlem butonlarını güncelle
+            actionsCell.innerHTML = `
+                <div class="flex justify-end items-center space-x-2">
+                    <button onclick="processFile('${fileId}', this)" class="text-white bg-yellow-600 hover:bg-yellow-700 px-3 py-1 rounded-md text-sm font-medium focus:outline-none">
+                        Yeniden İşle
+                    </button>
+                    <button onclick="editNote('${fileId}')" class="text-indigo-600 hover:text-indigo-900">
+                        Not Ekle
+                    </button>
+                    <button onclick="deleteFile('${fileId}')" class="text-red-600 hover:text-red-900">
+                        Sil
+                    </button>
+                </div>
+            `;
         } else {
-            const errorMessage = data.error || 'Bilinmeyen bir hata oluştu.';
-            updateProcessingStatus(fileId, 'error', errorMessage);
-            showNotification('İşlem başarısız. Detaylar için hata durumunun üzerine gelin.', 'error');
-            // Hata durumunda sayfayı yenileme
+            throw new Error(data.error || 'İşlem başarısız');
         }
     })
     .catch(error => {
-        const errorMessage = error.toString();
-        updateProcessingStatus(fileId, 'error', errorMessage);
-        showNotification('İşlem başarısız. Detaylar için hata durumunun üzerine gelin.', 'error');
-        // Hata durumunda sayfayı yenileme
+        console.error('Error:', error);
+        showNotification('error', error.message || 'Bir hata oluştu');
+        statusCell.innerHTML = originalStatusContent;
+        actionsCell.innerHTML = originalActionsContent;
     });
 }
 
@@ -356,18 +439,20 @@ function deleteFile(fileId) {
             method: 'POST',
             headers: {
                 'X-CSRFToken': document.querySelector('[name=csrfmiddlewaretoken]').value,
+                'Content-Type': 'application/json'
             },
+            credentials: 'same-origin'
         })
         .then(response => response.json())
         .then(data => {
             if (data.success) {
                 window.location.reload();
             } else {
-                alert(data.error);
+                throw new Error(data.error || 'Silme işlemi başarısız');
             }
         })
         .catch(error => {
-            alert('Bir hata oluştu: ' + error);
+            showNotification('error', error.message || 'Bir hata oluştu');
         });
     }
 }
@@ -416,7 +501,7 @@ document.getElementById('noteForm').addEventListener('submit', function(e) {
 });
 
 // Bildirim fonksiyonu
-function showNotification(message, type = 'success') {
+function showNotification(type, message) {
     const notification = document.getElementById('notification');
     notification.textContent = message;
     notification.className = `${type} shadow-lg`;
@@ -432,5 +517,65 @@ function showNotification(message, type = 'success') {
         notification.style.display = 'none';
     }, 5000);
 }
+
+function showReport(fileId) {
+    fetch(`/api/file-report/${fileId}/`, {
+        method: 'GET',
+        headers: {
+            'X-CSRFToken': document.querySelector('[name=csrfmiddlewaretoken]').value,
+            'Content-Type': 'application/json'
+        },
+        credentials: 'same-origin'
+    })
+    .then(response => {
+        if (!response.ok) {
+            throw new Error('Network response was not ok');
+        }
+        return response.json();
+    })
+    .then(data => {
+        if (data.success) {
+            const report = data.report;
+            document.getElementById('fileName').textContent = report.file_name;
+            document.getElementById('processedAt').textContent = report.processed_at || '-';
+            document.getElementById('totalRows').textContent = report.total_rows;
+            document.getElementById('successCount').textContent = report.success_count;
+            document.getElementById('processedRatio').textContent = report.processed_ratio;
+            document.getElementById('errorRatio').textContent = report.error_ratio;
+            
+            const errorDetails = document.getElementById('errorDetails');
+            const errorSection = document.getElementById('errorSection');
+            
+            if (report.error_details && report.error_details.length > 0) {
+                errorSection.classList.remove('hidden');
+                errorDetails.innerHTML = report.error_details
+                    .map(error => `<p class="mb-1">• ${error}</p>`)
+                    .join('');
+            } else {
+                errorSection.classList.add('hidden');
+                errorDetails.innerHTML = '';
+            }
+            
+            document.getElementById('reportModal').classList.remove('hidden');
+        } else {
+            throw new Error(data.error || 'Rapor alınamadı');
+        }
+    })
+    .catch(error => {
+        showNotification('error', error.message || 'Rapor alınırken bir hata oluştu');
+    });
+}
+
+// Modal kapatma işlemleri
+document.getElementById('closeReportModal').addEventListener('click', function() {
+    document.getElementById('reportModal').classList.add('hidden');
+});
+
+// Modal dışına tıklandığında kapatma
+document.getElementById('reportModal').addEventListener('click', function(e) {
+    if (e.target === this) {
+        this.classList.add('hidden');
+    }
+});
 </script>
 {% endblock %} 

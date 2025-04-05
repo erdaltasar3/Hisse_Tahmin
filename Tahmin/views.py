@@ -357,136 +357,179 @@ def upload_stock_data(request):
         'error': 'Geçersiz istek metodu'
     })
 
+def convert_volume(volume_str):
+    """
+    Hacim değerini float'a çevirir.
+    Örnek: '555.01K' -> 555010.0, '1.5M' -> 1500000.0
+    """
+    try:
+        if isinstance(volume_str, str):
+            # Virgülü noktaya çevir
+            volume_str = volume_str.replace(',', '.')
+            
+            # 'K' harfini kaldır ve 1000 ile çarp
+            if volume_str.endswith('K'):
+                return float(volume_str.replace('K', '')) * 1000
+            # 'M' harfini kaldır ve 1,000,000 ile çarp
+            elif volume_str.endswith('M'):
+                return float(volume_str.replace('M', '')) * 1000000
+            # 'B' harfini kaldır ve 1,000,000,000 ile çarp
+            elif volume_str.endswith('B'):
+                return float(volume_str.replace('B', '')) * 1000000000
+            # Sadece sayı ise direkt dönüştür
+            else:
+                return float(volume_str)
+        return float(volume_str)
+    except (ValueError, TypeError):
+        return None
+
 @login_required
 @user_passes_test(is_staff_user)
 def process_stock_data(request, file_id):
-    if request.method == 'POST':
-        try:
-            stock_file = StockFile.objects.get(id=file_id)
-            
-            if stock_file.is_processed:
-                return JsonResponse({
-                    'success': False,
-                    'error': 'Bu dosya zaten işlenmiş!'
-                })
-            
-            file_path = stock_file.file_path
-            stock = stock_file.stock
-
-            if not os.path.exists(file_path):
-                return JsonResponse({
-                    'success': False,
-                    'error': 'Dosya bulunamadı.'
-                })
-
-            try:
-                # CSV dosyasını oku ve ilk satırı atlayarak sütun isimlerini manuel belirt
-                df = pd.read_csv(file_path, encoding='utf-8', skiprows=1, 
-                               names=['Tarih', 'Açılış', 'Son', 'Yüksek', 'Düşük', 'Hacim', 'Değişim %'])
-                
-                # Tarih sütununu temizle ve dönüştür
-                df['Tarih'] = df['Tarih'].str.strip().str.replace('"', '')
-                df['Tarih'] = pd.to_datetime(df['Tarih'], format='%d.%m.%Y')
-                
-                success_count = 0
-                error_count = 0
-                errors = []
-                
-                # Verileri veritabanına kaydet
-                for index, row in df.iterrows():
-                    try:
-                        # Hacim değerini düzelt (M, B gibi son ekleri kaldır ve sayıya çevir)
-                        volume = str(row['Hacim']).strip().replace('"', '')
-                        if 'M' in volume:
-                            volume = float(volume.replace('M', '').replace(',', '.')) * 1_000_000
-                        elif 'B' in volume:
-                            volume = float(volume.replace('B', '').replace(',', '.')) * 1_000
-                        else:
-                            volume = float(volume.replace(',', '.'))
-                        
-                        # Yüzde değişimi düzelt
-                        change_str = str(row['Değişim %']).strip().replace('"', '').replace('%', '').replace(',', '.')
-                        change_percent = float(change_str) if change_str else 0.0
-                        
-                        # Fiyat değerlerini float'a çevir
-                        closing_price = float(str(row['Son']).strip().replace('"', '').replace(',', '.'))
-                        opening_price = float(str(row['Açılış']).strip().replace('"', '').replace(',', '.'))
-                        highest_price = float(str(row['Yüksek']).strip().replace('"', '').replace(',', '.'))
-                        lowest_price = float(str(row['Düşük']).strip().replace('"', '').replace(',', '.'))
-                        
-                        # Eğer bu tarih için kayıt varsa güncelle, yoksa yeni kayıt oluştur
-                        stock_price, created = StockPrice.objects.update_or_create(
-                            stock=stock,
-                            date=row['Tarih'].date(),
-                            defaults={
-                                'closing_price': closing_price,
-                                'opening_price': opening_price,
-                                'highest_price': highest_price,
-                                'lowest_price': lowest_price,
-                                'volume': volume,
-                                'daily_change': change_percent
-                            }
-                        )
-                        success_count += 1
-                        
-                    except Exception as e:
-                        error_count += 1
-                        error_detail = f"Satır {index + 2}: {str(e)}"
-                        errors.append(error_detail)
-                        continue
-                
-                # Eğer hiç başarılı kayıt yoksa ve hata varsa
-                if success_count == 0 and error_count > 0:
-                    error_message = "Hiçbir veri kaydedilemedi!\n\nHata Detayları:\n" + "\n".join(errors[:5])
-                    if len(errors) > 5:
-                        error_message += f"\n\n... ve {len(errors) - 5} hata daha."
-                    return JsonResponse({
-                        'success': False,
-                        'error': error_message
-                    })
-                
-                # En az bir başarılı kayıt varsa dosyayı işlenmiş olarak işaretle
-                if success_count > 0:
-                    stock_file.is_processed = True
-                    stock_file.save()
-                
-                # Başarı mesajı döndür
-                message = f'{success_count} kayıt başarıyla eklendi/güncellendi.'
-                if error_count > 0:
-                    message += f'\n{error_count} kayıt işlenemedi.'
-                    if errors:
-                        message += '\n\nHata Detayları:\n' + '\n'.join(errors[:3])
-                        if len(errors) > 3:
-                            message += f'\n\n... ve {len(errors) - 3} hata daha.'
-                
-                return JsonResponse({
-                    'success': True,
-                    'message': message,
-                    'success_count': success_count,
-                    'error_count': error_count
-                })
-                
-            except Exception as e:
-                return JsonResponse({
-                    'success': False,
-                    'error': f'CSV okuma hatası: {str(e)}'
-                })
-            
-        except StockFile.DoesNotExist:
+    try:
+        stock_file = StockFile.objects.get(id=file_id, uploaded_by=request.user)
+        
+        if not os.path.exists(stock_file.file_path):
             return JsonResponse({
                 'success': False,
                 'error': 'Dosya bulunamadı.'
             })
+            
+        success_count = 0
+        error_count = 0
+        error_details = []
+        duplicate_count = 0
+        total_rows = 0
+
+        try:
+            # CSV dosyasını oku ve sütun isimlerini belirt
+            df = pd.read_csv(stock_file.file_path, encoding='utf-8')
+            total_rows = len(df)
+            
+            # Sütun isimlerini kontrol et ve gerekirse değiştir
+            column_mappings = {
+                'Tarih': 'Date',
+                'Date': 'Date',
+                'Açılış': 'Open',
+                'Open': 'Open',
+                'Yüksek': 'High',
+                'High': 'High',
+                'Düşük': 'Low',
+                'Low': 'Low',
+                'Şimdi': 'Close',  # Kapanış fiyatı
+                'Kapanış': 'Close',
+                'Close': 'Close',
+                'Hacim': 'Volume',
+                'Volume': 'Volume',
+                'Vol.': 'Volume',
+                'Vol': 'Volume',
+                'Hac.': 'Volume',  # Hacim sütunu
+                'Hacim.': 'Volume',
+                'Fark %': 'Change'  # Günlük değişim yüzdesi
+            }
+            
+            # Sütun isimlerini değiştir
+            df = df.rename(columns=column_mappings)
+            
+            # Gerekli sütunların varlığını kontrol et
+            required_columns = ['Date', 'Open', 'High', 'Low', 'Close', 'Volume']
+            missing_columns = [col for col in required_columns if col not in df.columns]
+            
+            if missing_columns:
+                raise ValueError(f"CSV dosyasında gerekli sütunlar eksik: {', '.join(missing_columns)}")
+                
+            # Sütun isimlerini göster (debug için)
+            print("Mevcut sütunlar:", df.columns.tolist())
+            
+            for index, row in df.iterrows():
+                try:
+                    date = pd.to_datetime(row['Date']).date()
+                    
+                    # Aynı tarihli kayıt var mı kontrol et
+                    existing_record = StockPrice.objects.filter(
+                        stock=stock_file.stock,
+                        date=date
+                    ).first()
+                    
+                    if existing_record:
+                        duplicate_count += 1
+                        continue
+
+                    # Hacim verisini dönüştür
+                    volume = convert_volume(row['Volume'])
+                    
+                    if volume is None:
+                        error_count += 1
+                        error_details.append(f"Satır {index + 2}: Geçersiz hacim değeri: {row['Volume']}")
+                        continue
+                
+                    # StockPrice nesnesini oluştur
+                    stock_price = StockPrice(
+                        stock=stock_file.stock,
+                        date=date,
+                        opening_price=float(row['Open'].replace(',', '.')),
+                        highest_price=float(row['High'].replace(',', '.')),
+                        lowest_price=float(row['Low'].replace(',', '.')),
+                        closing_price=float(row['Close'].replace(',', '.')),
+                        volume=volume,
+                        daily_change=float(row.get('Change', '0').replace('%', '').replace(',', '.'))
+                    )
+                    stock_price.save()
+                    success_count += 1
+
+                except Exception as e:
+                    error_count += 1
+                    error_details.append(f"Satır {index + 2}: {str(e)}")
+
+            # İşleme sonuçlarını kaydet
+            stock_file.is_processed = True
+            stock_file.success_count = success_count
+            stock_file.error_count = error_count
+            stock_file.error_details = '\n'.join(error_details)
+            stock_file.processed_at = timezone.now()
+            stock_file.save()
+                
+            # Detaylı rapor mesajı oluştur
+            message = f'Dosya işleme tamamlandı:\n'
+            message += f'• Toplam satır sayısı: {total_rows}\n'
+            message += f'• Başarıyla eklenen yeni kayıt: {success_count}\n'
+            message += f'• Zaten mevcut olan kayıt: {duplicate_count}\n'
+            if error_count > 0:
+                message += f'• Hatalı kayıt: {error_count}\n'
+                message += f'• İşlenemeyen satır oranı: %{(error_count/total_rows*100):.1f}\n'
+            
+            # Başarı durumunu hesapla
+            processed_ratio = ((success_count + duplicate_count) / total_rows * 100)
+            message += f'\nGenel başarı oranı: %{processed_ratio:.1f}'
+                
+            return JsonResponse({
+                'success': True,
+                'message': message,
+                'details': {
+                    'total_rows': total_rows,
+                    'success_count': success_count,
+                    'duplicate_count': duplicate_count,
+                    'error_count': error_count,
+                    'processed_ratio': processed_ratio
+                }
+            })
+                
         except Exception as e:
             return JsonResponse({
                 'success': False,
-                'error': f'Veri işleme hatası: {str(e)}'
+                'error': f'Dosya işlenirken hata oluştu: {str(e)}'
             })
-    
-    return JsonResponse({
-        'success': False,
-        'error': 'Geçersiz istek metodu.'
-    })
+            
+    except StockFile.DoesNotExist:
+        return JsonResponse({
+            'success': False,
+            'error': 'Dosya bulunamadı.'
+        })
+    except Exception as e:
+        return JsonResponse({
+            'success': False,
+            'error': str(e)
+        })
 
 @login_required
 @user_passes_test(is_staff_user)
@@ -670,6 +713,226 @@ def login_view(request):
             messages.error(request, 'Kullanıcı adı veya şifre hatalı.')
     
     return render(request, 'Tahmin/login.html')
+
+@login_required
+def file_report(request, file_id):
+    try:
+        stock_file = StockFile.objects.get(id=file_id, uploaded_by=request.user)
+        
+        if not stock_file.is_processed:
+            return JsonResponse({
+                'success': False,
+                'error': 'Bu dosya henüz işlenmemiş.'
+            })
+        
+        # Detaylı rapor bilgilerini hazırla
+        total_rows = stock_file.success_count + stock_file.error_count
+        if total_rows > 0:
+            processed_ratio = ((stock_file.success_count) / total_rows * 100)
+            error_ratio = (stock_file.error_count / total_rows * 100) if stock_file.error_count > 0 else 0
+        else:
+            processed_ratio = 0
+            error_ratio = 0
+            
+        return JsonResponse({
+            'success': True,
+            'report': {
+                'file_name': stock_file.filename,
+                'processed_at': stock_file.processed_at.strftime('%d.%m.%Y %H:%M:%S') if stock_file.processed_at else None,
+                'total_rows': total_rows,
+                'success_count': stock_file.success_count,
+                'error_count': stock_file.error_count,
+                'processed_ratio': f'%{processed_ratio:.1f}',
+                'error_ratio': f'%{error_ratio:.1f}',
+                'error_details': stock_file.error_details.split('\n') if stock_file.error_details else []
+            }
+        })
+        
+    except StockFile.DoesNotExist:
+        return JsonResponse({
+            'success': False,
+            'error': 'Dosya bulunamadı.'
+        })
+    except Exception as e:
+        return JsonResponse({
+            'success': False,
+            'error': str(e)
+        })
+
+@login_required
+@user_passes_test(is_staff_user)
+def process_all_files(request):
+    if request.method == 'POST':
+        try:
+            # Upload ana dizini
+            base_upload_dir = os.path.join('uploads', 'stock_data')
+            if not os.path.exists(base_upload_dir):
+                return JsonResponse({
+                    'success': False,
+                    'error': 'İşlenecek dosya bulunamadı!'
+                })
+
+            results = []
+            
+            # Her bir hisse klasörünü kontrol et
+            for stock_folder in os.listdir(base_upload_dir):
+                stock_path = os.path.join(base_upload_dir, stock_folder)
+                if not os.path.isdir(stock_path):
+                    continue
+
+                # Hisse sembolüne göre Stock nesnesini bul
+                try:
+                    stock = Stock.objects.get(symbol=stock_folder)
+                except Stock.DoesNotExist:
+                    continue
+
+                # Hisse klasöründeki her dosyayı kontrol et
+                for filename in os.listdir(stock_path):
+                    file_path = os.path.join(stock_path, filename)
+                    
+                    # Sadece CSV dosyalarını işle
+                    if not filename.endswith('.csv'):
+                        continue
+
+                    try:
+                        success_count = 0
+                        error_count = 0
+                        error_details = []
+                        duplicate_count = 0
+                        total_rows = 0
+
+                        # CSV dosyasını oku
+                        df = pd.read_csv(file_path, encoding='utf-8')
+                        total_rows = len(df)
+                        
+                        # Sütun isimlerini kontrol et ve gerekirse değiştir
+                        column_mappings = {
+                            'Tarih': 'Date',
+                            'Date': 'Date',
+                            'Açılış': 'Open',
+                            'Open': 'Open',
+                            'Yüksek': 'High',
+                            'High': 'High',
+                            'Düşük': 'Low',
+                            'Low': 'Low',
+                            'Şimdi': 'Close',
+                            'Kapanış': 'Close',
+                            'Close': 'Close',
+                            'Hacim': 'Volume',
+                            'Volume': 'Volume',
+                            'Vol.': 'Volume',
+                            'Vol': 'Volume',
+                            'Hac.': 'Volume',
+                            'Hacim.': 'Volume',
+                            'Fark %': 'Change'
+                        }
+                        
+                        # Sütun isimlerini değiştir
+                        df = df.rename(columns=column_mappings)
+                        
+                        # Gerekli sütunların varlığını kontrol et
+                        required_columns = ['Date', 'Open', 'High', 'Low', 'Close', 'Volume']
+                        missing_columns = [col for col in required_columns if col not in df.columns]
+                        
+                        if missing_columns:
+                            results.append({
+                                'stock': stock.symbol,
+                                'status': 'error',
+                                'message': f"Gerekli sütunlar eksik: {', '.join(missing_columns)}"
+                            })
+                            continue
+
+                        # Her bir satırı işle
+                        for index, row in df.iterrows():
+                            try:
+                                date = pd.to_datetime(row['Date']).date()
+                                
+                                # Aynı tarihli kayıt var mı kontrol et
+                                if StockPrice.objects.filter(stock=stock, date=date).exists():
+                                    duplicate_count += 1
+                                    continue
+
+                                # Hacim verisini dönüştür
+                                volume = convert_volume(row['Volume'])
+                                
+                                if volume is None:
+                                    error_count += 1
+                                    error_details.append(f"Satır {index + 2}: Geçersiz hacim değeri: {row['Volume']}")
+                                    continue
+                            
+                                # StockPrice nesnesini oluştur ve kaydet
+                                stock_price = StockPrice(
+                                    stock=stock,
+                                    date=date,
+                                    opening_price=float(row['Open'].replace(',', '.')),
+                                    highest_price=float(row['High'].replace(',', '.')),
+                                    lowest_price=float(row['Low'].replace(',', '.')),
+                                    closing_price=float(row['Close'].replace(',', '.')),
+                                    volume=volume,
+                                    daily_change=float(row.get('Change', '0').replace('%', '').replace(',', '.'))
+                                )
+                                stock_price.save()
+                                success_count += 1
+
+                            except Exception as e:
+                                error_count += 1
+                                error_details.append(f"Satır {index + 2}: {str(e)}")
+
+                        # StockFile nesnesini güncelle veya oluştur
+                        stock_file, created = StockFile.objects.get_or_create(
+                            stock=stock,
+                            file_path=file_path,
+                            defaults={
+                                'filename': filename,
+                                'uploaded_by': request.user
+                            }
+                        )
+                        
+                        stock_file.is_processed = True
+                        stock_file.success_count = success_count
+                        stock_file.error_count = error_count
+                        stock_file.error_details = '\n'.join(error_details)
+                        stock_file.processed_at = timezone.now()
+                        stock_file.save()
+
+                        results.append({
+                            'stock': stock.symbol,
+                            'status': 'success',
+                            'total_rows': total_rows,
+                            'success_count': success_count,
+                            'error_count': error_count,
+                            'duplicate_count': duplicate_count,
+                            'message': f"Başarıyla işlendi"
+                        })
+
+                    except Exception as e:
+                        results.append({
+                            'stock': stock.symbol,
+                            'status': 'error',
+                            'message': str(e)
+                        })
+
+            if not results:
+                return JsonResponse({
+                    'success': False,
+                    'error': 'İşlenecek dosya bulunamadı!'
+                })
+
+            return JsonResponse({
+                'success': True,
+                'results': results
+            })
+
+        except Exception as e:
+            return JsonResponse({
+                'success': False,
+                'error': str(e)
+            })
+
+    return JsonResponse({
+        'success': False,
+        'error': 'Geçersiz istek metodu'
+    })
 
 
 

@@ -67,6 +67,12 @@ class StockFile(models.Model):
     is_processed = models.BooleanField(default=False)
     uploaded_at = models.DateTimeField(auto_now_add=True)
     uploaded_by = models.ForeignKey(User, on_delete=models.SET_NULL, null=True)
+    
+    # İşleme sonuçları için yeni alanlar
+    success_count = models.IntegerField(default=0)
+    error_count = models.IntegerField(default=0)
+    error_details = models.TextField(blank=True, null=True)
+    processed_at = models.DateTimeField(null=True, blank=True)
 
     class Meta:
         ordering = ['-uploaded_at']

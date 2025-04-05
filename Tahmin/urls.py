@@ -30,6 +30,8 @@ urlpatterns = [
     path('api/update-file-note/<int:file_id>/', views.update_file_note, name='update_file_note'),
     path('api/delete-file/<int:file_id>/', views.delete_file, name='delete_file'),
     path('api/process-file/<int:file_id>/', views.process_stock_data, name='process_file'),
+    path('api/file-report/<int:file_id>/', views.file_report, name='file_report'),
+    path('api/process-all-files/', views.process_all_files, name='process_all_files'),
 
     # Kullanıcı profili
     path('profile/', views.profile_view, name='profile'),
