@@ -535,7 +535,50 @@ def process_stock_data(request, file_id):
 @user_passes_test(is_staff_user)
 def stock_files(request, stock_id):
     stock = get_object_or_404(Stock, id=stock_id)
+    
+    # Upload klasörünü kontrol et
+    stock_upload_dir = os.path.join('uploads', 'stock_data', stock.symbol)
+    existing_files = set()
+    
+    if os.path.exists(stock_upload_dir):
+        # Klasördeki mevcut dosyaları listele
+        existing_files = {f for f in os.listdir(stock_upload_dir) if os.path.isfile(os.path.join(stock_upload_dir, f))}
+    
+    # Veritabanındaki dosya kayıtlarını kontrol et
+    db_files = stock.files.all()
+    
+    for db_file in db_files:
+        file_name = os.path.basename(db_file.file_path)
+        
+        # Eğer dosya fiziksel olarak yoksa, veritabanından da sil
+        if file_name not in existing_files:
+            # Önce bu dosyadan yüklenmiş verileri sil
+            if db_file.is_processed:
+                try:
+                    # Dosyadan tarihleri oku ve o tarihlerdeki verileri sil
+                    df = pd.read_csv(db_file.file_path, encoding='utf-8')
+                    column_mappings = {
+                        'Tarih': 'Date',
+                        'Date': 'Date'
+                    }
+                    df = df.rename(columns=column_mappings)
+                    dates = pd.to_datetime(df['Date'], dayfirst=True).dt.date.tolist()
+                    
+                    # Bu tarihlerdeki kayıtları sil
+                    StockPrice.objects.filter(
+                        stock=stock,
+                        date__in=dates
+                    ).delete()
+                except:
+                    # Dosya okunamıyorsa veya başka bir hata olursa, sadece dosya kaydını sil
+                    pass
+            
+            # Dosya kaydını veritabanından sil
+            db_file.delete()
+    
+    # Güncel dosya listesini getir
     files = stock.files.all()
+    
     return render(request, 'Tahmin/stock_files.html', {
         'stock': stock,
         'files': files
@@ -654,16 +697,37 @@ def delete_file(request, file_id):
         try:
             stock_file = get_object_or_404(StockFile, id=file_id)
             
+            # İlgili StockPrice kayıtlarını sil
+            if stock_file.is_processed:
+                # Dosyadan yüklenen tüm fiyat verilerini sil
+                df = pd.read_csv(stock_file.file_path, encoding='utf-8')
+                
+                # Sütun isimlerini kontrol et ve gerekirse değiştir
+                column_mappings = {
+                    'Tarih': 'Date',
+                    'Date': 'Date'
+                }
+                df = df.rename(columns=column_mappings)
+                
+                # Tarihleri datetime formatına çevir (dayfirst=True ile gün.ay.yıl formatını belirt)
+                dates = pd.to_datetime(df['Date'], dayfirst=True).dt.date.tolist()
+                
+                # Bu tarihlerdeki kayıtları sil
+                StockPrice.objects.filter(
+                    stock=stock_file.stock,
+                    date__in=dates
+                ).delete()
+            
             # Dosyayı diskten sil
             if os.path.exists(stock_file.file_path):
                 os.remove(stock_file.file_path)
             
-            # Veritabanından sil
+            # Veritabanından dosya kaydını sil
             stock_file.delete()
             
             return JsonResponse({
                 'success': True,
-                'message': 'Dosya başarıyla silindi.'
+                'message': 'Dosya ve ilgili veriler başarıyla silindi.'
             })
             
         except Exception as e:
@@ -929,6 +993,30 @@ def process_all_files(request):
                 'error': str(e)
             })
 
+    return JsonResponse({
+        'success': False,
+        'error': 'Geçersiz istek metodu'
+    })
+
+@login_required
+@user_passes_test(is_staff_user)
+def delete_all_stock_prices(request):
+    if request.method == 'POST':
+        try:
+            # Tüm StockPrice kayıtlarını sil
+            deleted_count = StockPrice.objects.all().delete()[0]
+            
+            return JsonResponse({
+                'success': True,
+                'message': f'Toplam {deleted_count} hisse fiyat verisi başarıyla silindi.'
+            })
+            
+        except Exception as e:
+            return JsonResponse({
+                'success': False,
+                'error': str(e)
+            })
+    
     return JsonResponse({
         'success': False,
         'error': 'Geçersiz istek metodu'

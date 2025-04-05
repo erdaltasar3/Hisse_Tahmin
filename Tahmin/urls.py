@@ -23,6 +23,7 @@ urlpatterns = [
     path('api/add-stock-price/', views.add_stock_price_api, name='add_stock_price_api'),
     path('api/upload-stock-data/', views.upload_stock_data, name='upload_stock_data'),
     path('api/process-stock-data/', views.process_stock_data, name='process_stock_data'),
+    path('api/delete-all-stock-prices/', views.delete_all_stock_prices, name='delete_all_stock_prices'),
 
     # Hisse dosya yönetimi
     path('stocks/<int:stock_id>/files/', views.stock_files, name='stock_files'),

@@ -18,19 +18,39 @@
 
     <!-- Butonlar -->
     <div class="flex justify-between items-center mb-6">
-        <div class="d-flex gap-2">
-            <button onclick="showAddModal()" class="btn btn-success" id="addStockBtn">
-                <i class="fas fa-plus"></i> Yeni Hisse Ekle
+        <div class="flex space-x-4">
+            <button onclick="showAddModal()" class="inline-flex items-center px-4 py-2.5 bg-green-600 hover:bg-green-700 text-white text-sm font-medium rounded-lg transition-colors duration-200 shadow-sm hover:shadow-md">
+                <svg class="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6v6m0 0v6m0-6h6m-6 0H6"/>
+                </svg>
+                Yeni Hisse Ekle
             </button>
-            <button onclick="showBulkUploadModal()" class="btn btn-primary" id="bulkAddPricesBtn">
-                <i class="fas fa-file-upload"></i> Toplu Fiyat Ekle
+            <button onclick="showBulkUploadModal()" class="inline-flex items-center px-4 py-2.5 bg-blue-600 hover:bg-blue-700 text-white text-sm font-medium rounded-lg transition-colors duration-200 shadow-sm hover:shadow-md">
+                <svg class="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12"/>
+                </svg>
+                Toplu Fiyat Ekle
             </button>
-            <button onclick="showConfirmationModal()" class="btn btn-warning" id="processAllFilesBtn">
-                <i class="fas fa-cogs"></i> Tamamını İşle
+            <button onclick="showConfirmationModal()" class="inline-flex items-center px-4 py-2.5 bg-yellow-600 hover:bg-yellow-700 text-white text-sm font-medium rounded-lg transition-colors duration-200 shadow-sm hover:shadow-md">
+                <svg class="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"/>
+                </svg>
+                Tamamını İşle
+            </button>
+            <button onclick="showDeleteAllConfirmationModal()" class="inline-flex items-center px-4 py-2.5 bg-red-600 hover:bg-red-700 text-white text-sm font-medium rounded-lg transition-colors duration-200 shadow-sm hover:shadow-md">
+                <svg class="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/>
+                </svg>
+                Tüm Verileri Sil
             </button>
         </div>
         <div class="relative">
-            <input type="text" id="search" placeholder="Hisse ara..." class="w-64 px-4 py-2 rounded-lg border border-gray-300 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500">
+            <div class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                <svg class="h-5 w-5 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"/>
+                </svg>
+            </div>
+            <input type="text" id="search" placeholder="Hisse ara..." class="pl-10 w-64 px-4 py-2.5 rounded-lg border border-gray-300 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors duration-200">
         </div>
     </div>
 
@@ -224,11 +244,18 @@
     <div class="relative top-20 mx-auto p-5 border w-[800px] shadow-lg rounded-md bg-white">
         <div class="mt-3">
             <div class="flex items-center justify-between mb-4">
-                <h3 class="text-lg leading-6 font-medium text-gray-900">Toplu İşleme Durumu</h3>
-                <div id="processingStatus" class="flex items-center">
-                    <div id="processingSpinner" class="animate-spin rounded-full h-5 w-5 border-b-2 border-blue-500 mr-2"></div>
-                    <span id="currentProcessing" class="text-blue-500">Başlatılıyor...</span>
+                <div class="flex items-center">
+                    <h3 class="text-lg leading-6 font-medium text-gray-900 mr-4">Toplu İşleme Durumu</h3>
+                    <div id="processingStatus" class="flex items-center">
+                        <div id="processingSpinner" class="animate-spin rounded-full h-5 w-5 border-b-2 border-blue-500 mr-2"></div>
+                        <span id="currentProcessing" class="text-blue-500">Başlatılıyor...</span>
+                    </div>
                 </div>
+                <button onclick="closeProcessingModal()" class="text-gray-500 hover:text-gray-700 focus:outline-none">
+                    <svg class="h-6 w-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
+                    </svg>
+                </button>
             </div>
             <div class="mt-2 px-7 py-3">
                 <div id="processingSteps" class="space-y-4">
@@ -283,6 +310,37 @@
                     </button>
                     <button id="confirmOk" class="px-4 py-2 bg-blue-500 text-white rounded-md hover:bg-blue-600 focus:outline-none">
                         Devam Et
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Veri Silme Onay Modalı -->
+<div id="deleteAllConfirmationModal" class="hidden fixed inset-0 bg-gray-600 bg-opacity-50 overflow-y-auto h-full w-full z-50">
+    <div class="relative top-20 mx-auto p-5 border w-96 shadow-lg rounded-md bg-white">
+        <div class="mt-3">
+            <div class="flex items-center justify-center">
+                <div class="flex-shrink-0 mx-auto">
+                    <svg class="h-12 w-12 text-red-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"/>
+                    </svg>
+                </div>
+            </div>
+            <div class="text-center">
+                <h3 class="text-lg leading-6 font-medium text-gray-900 mb-2">Dikkat!</h3>
+                <div class="mt-2 px-7 py-3">
+                    <p class="text-sm text-gray-500">
+                        Tüm hisse fiyat verilerini silmek üzeresiniz. Bu işlem geri alınamaz. Devam etmek istediğinizden emin misiniz?
+                    </p>
+                </div>
+                <div class="flex justify-center gap-4 mt-3">
+                    <button id="deleteAllCancel" onclick="closeDeleteAllConfirmationModal()" class="px-4 py-2 bg-gray-300 text-gray-700 rounded-md hover:bg-gray-400 focus:outline-none">
+                        İptal
+                    </button>
+                    <button id="deleteAllConfirm" onclick="deleteAllStockPrices()" class="px-4 py-2 bg-red-500 text-white rounded-md hover:bg-red-600 focus:outline-none">
+                        Evet, Sil
                     </button>
                 </div>
             </div>
@@ -632,6 +690,42 @@
         setTimeout(() => {
             notification.classList.add('hidden');
         }, 300);
+    }
+
+    function showDeleteAllConfirmationModal() {
+        document.getElementById('deleteAllConfirmationModal').classList.remove('hidden');
+    }
+
+    function closeDeleteAllConfirmationModal() {
+        document.getElementById('deleteAllConfirmationModal').classList.add('hidden');
+    }
+
+    function deleteAllStockPrices() {
+        fetch('/api/delete-all-stock-prices/', {
+            method: 'POST',
+            headers: {
+                'X-CSRFToken': document.querySelector('[name=csrfmiddlewaretoken]').value,
+                'Content-Type': 'application/json'
+            },
+            credentials: 'same-origin'
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                showNotification(data.message, 'success');
+                closeDeleteAllConfirmationModal();
+                // Sayfayı yenile
+                setTimeout(() => {
+                    window.location.reload();
+                }, 1500);
+            } else {
+                throw new Error(data.error || 'Silme işlemi başarısız oldu');
+            }
+        })
+        .catch(error => {
+            showNotification(error.message || 'Bir hata oluştu', 'error');
+            closeDeleteAllConfirmationModal();
+        });
     }
 </script>
 {% endblock %} 
