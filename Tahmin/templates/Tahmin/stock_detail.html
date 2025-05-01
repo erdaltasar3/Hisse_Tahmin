@@ -1,0 +1,65 @@
+{% extends 'Tahmin/admin_base.html' %}
+
+{% block content %}
+<div class="container mx-auto px-4 sm:px-6 lg:px-8">
+    <h1 class="text-2xl font-semibold text-gray-900 mb-6">{{ stock.name }} Detayları</h1>
+    <div class="bg-white shadow-md rounded-lg p-2 mb-4">
+        <h3 class="text-lg leading-6 font-medium text-gray-900 mb-2">Hisse Bilgileri</h3>
+        <div class="grid grid-cols-1 sm:grid-cols-2 gap-2">
+            <div class="bg-gray-50 p-2 rounded">
+                <dt class="text-sm font-medium text-gray-500">Sembol</dt>
+                <dd class="mt-1 text-sm text-gray-900">{{ stock.symbol }}</dd>
+            </div>
+            <div class="bg-gray-50 p-4 rounded">
+                <dt class="text-sm font-medium text-gray-500">Sektör</dt>
+                <dd class="mt-1 text-sm text-gray-900">{{ stock.sector }}</dd>
+            </div>
+            <div class="bg-gray-50 p-4 rounded">
+                <dt class="text-sm font-medium text-gray-500">Durum</dt>
+                <dd class="mt-1 text-sm text-gray-900">{% if stock.is_active %}Aktif{% else %}Pasif{% endif %}</dd>
+            </div>
+        </div>
+    </div>
+    <div class="bg-white shadow-md rounded-lg p-4">
+        <h3 class="text-lg leading-6 font-medium text-gray-900 mb-4">Fiyat Grafiği</h3>
+        <canvas id="priceChart"></canvas>
+    </div>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<script>
+    // Django template değişkenlerini JavaScript değişkenlerine aktarma
+    const priceDates = {{ price_dates|safe }};
+    const priceValues = {{ price_values|safe }};
+
+    const ctx = document.getElementById('priceChart').getContext('2d');
+    const priceChart = new Chart(ctx, {
+        type: 'line',
+        data: {
+            labels: priceDates,
+            datasets: [{
+                label: 'Fiyat',
+                data: priceValues,
+                borderColor: 'rgba(75, 192, 192, 1)',
+                tension: 0.1
+            }]
+        },
+        options: {
+            scales: {
+                x: {
+                    title: {
+                        display: true,
+                        text: 'Tarih'
+                    }
+                },
+                y: {
+                    title: {
+                        display: true,
+                        text: 'Fiyat'
+                    }
+                }
+            }
+        }
+    });
+</script>
+{% endblock %} 

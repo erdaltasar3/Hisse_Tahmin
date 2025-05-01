@@ -19,7 +19,6 @@ urlpatterns = [
     path('stocks/delete/<int:stock_id>/', views.delete_stock, name='delete_stock'),
     path('stocks/toggle-status/<int:stock_id>/', views.toggle_stock_status, name='toggle_stock_status'),
     path('stocks/<int:stock_id>/add-price/', views.add_stock_price, name='add_stock_price'),
-    path('bulk-add-stock-prices/', views.bulk_add_stock_prices, name='bulk_add_stock_prices'),
     path('api/add-stock-price/', views.add_stock_price_api, name='add_stock_price_api'),
     path('api/upload-stock-data/', views.upload_stock_data, name='upload_stock_data'),
     path('api/process-stock-data/', views.process_stock_data, name='process_stock_data'),
@@ -36,5 +35,7 @@ urlpatterns = [
 
     # Kullanıcı profili
     path('profile/', views.profile_view, name='profile'),
+
+    path('stocks/<int:stock_id>/', views.stock_detail, name='stock_detail'),
 ]
 

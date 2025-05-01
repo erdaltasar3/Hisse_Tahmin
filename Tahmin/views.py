@@ -236,14 +236,6 @@ def add_stock_price(request, stock_id):
     return render(request, 'Tahmin/add_stock_price.html', context)
 
 @login_required
-def bulk_add_stock_prices(request):
-    stocks = Stock.objects.all().order_by('symbol')
-    context = {
-        'stocks': stocks,
-    }
-    return render(request, 'Tahmin/bulk_add_stock_prices.html', context)
-
-@login_required
 def add_stock_price_api(request):
     if request.method == 'POST':
         stock_id = request.POST.get('stock_id')
@@ -1021,6 +1013,12 @@ def delete_all_stock_prices(request):
         'success': False,
         'error': 'Geçersiz istek metodu'
     })
+
+@login_required
+@user_passes_test(is_staff_user)
+def stock_detail(request, stock_id):
+    stock = get_object_or_404(Stock, id=stock_id)
+    return render(request, 'Tahmin/stock_detail.html', {'stock': stock})
 
 
 
