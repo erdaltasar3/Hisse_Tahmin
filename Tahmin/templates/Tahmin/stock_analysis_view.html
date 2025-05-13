@@ -1,0 +1,1359 @@
+{% extends 'Tahmin/admin_base.html' %}
+
+{% block content %}
+<div class="container mx-auto px-4 sm:px-6 lg:px-8 py-8">
+    <!-- Sayfanın üst kısmı - Başlık ve hızlı bilgiler -->
+    <div class="bg-gradient-to-r from-blue-700 to-indigo-800 rounded-xl shadow-lg p-6 mb-8">
+        <div class="flex flex-col md:flex-row justify-between items-start md:items-center">
+            <div>
+                <h1 class="text-3xl font-bold text-white mb-2">{{ stock.name }} <span class="text-lg bg-blue-900 px-2 py-1 rounded ml-2">{{ stock.symbol }}</span></h1>
+                <p class="text-blue-100">İstatistik Analizi</p>
+            </div>
+            <div class="mt-4 md:mt-0 flex space-x-3">
+                <a href="{% url 'stock_detail' stock.id %}" class="flex items-center px-4 py-2 bg-white text-blue-700 rounded-lg hover:bg-blue-50 transition-colors shadow-md font-medium">
+                    <svg class="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7"></path>
+                    </svg>
+                    Hisse Detaylarına Dön
+                </a>
+                <a href="{% url 'start_prediction' stock.id %}" class="flex items-center px-4 py-2 bg-green-500 text-white rounded-lg hover:bg-green-600 transition-colors shadow-md font-medium">
+                    <svg class="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z"></path>
+                    </svg>
+                    Tahmin Başlat
+                </a>
+                <button id="updateStatsBtn" data-stock-id="{{ stock.id }}" class="flex items-center px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors shadow-md font-medium">
+                    <svg id="updateIcon" class="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"></path>
+                    </svg>
+                    <div id="updateLoader" class="hidden mr-2">
+                        <div class="animate-spin rounded-full h-5 w-5 border-b-2 border-white"></div>
+                    </div>
+                    <span id="updateBtnText">İstatistikleri Güncelle</span>
+                </button>
+            </div>
+        </div>
+    </div>
+    
+    <!-- İşlem sonuç mesajı -->
+    <div id="updateMessage" class="hidden mb-4 rounded-lg px-4 py-3 text-sm font-medium"></div>
+    
+    <!-- Ana grafik alanı -->
+    <div class="bg-white rounded-xl shadow-lg overflow-hidden">
+        <div class="border-b border-gray-200">
+            <div class="p-4 bg-gray-50 flex flex-wrap items-center">
+                <div class="bg-blue-100 p-2 rounded-lg mr-3">
+                    <svg class="w-6 h-6 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"></path>
+                    </svg>
+                </div>
+                <h2 class="text-xl font-semibold text-gray-800 mr-auto">Hareketli Ortalamalar Analizi</h2>
+                
+                <div class="flex flex-wrap items-center gap-2 mt-2 md:mt-0 ml-auto">
+                    <!-- Tarih Seçici -->
+                    <div class="mr-2">
+                        <input type="date" id="dateSelector" class="text-sm bg-white border border-gray-300 rounded-md px-3 py-1.5 focus:outline-none focus:ring-2 focus:ring-blue-500">
+                        <button id="dateViewBtn" class="ml-1 px-2 py-1.5 bg-indigo-600 text-white rounded hover:bg-indigo-700 transition-colors text-sm">
+                            <svg class="w-4 h-4 inline-block" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"></path>
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"></path>
+                            </svg>
+                        </button>
+                    </div>
+                    
+                    <!-- Veri Aralığı Seçimi -->
+                    <div class="mr-2">
+                        <select id="timeRangeSelector" class="text-sm bg-white border border-gray-300 rounded-md px-3 py-1.5 focus:outline-none focus:ring-2 focus:ring-blue-500">
+                            <option value="1m">1 Ay</option>
+                            <option value="3m">3 Ay</option>
+                            <option value="6m" selected>6 Ay</option>
+                            <option value="1y">1 Yıl</option>
+                            <option value="all">Tüm Veriler</option>
+                        </select>
+                    </div>
+                    
+                    <!-- Grafik Kontrolleri -->
+                    <div class="flex space-x-1">
+                        <button id="zoomInBtn" class="p-1.5 bg-gray-100 hover:bg-gray-200 rounded text-gray-700 transition-colors" title="Yakınlaştır">
+                            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0zM10 7v3m0 0v3m0-3h3m-3 0H7"></path>
+                            </svg>
+                        </button>
+                        <button id="zoomOutBtn" class="p-1.5 bg-gray-100 hover:bg-gray-200 rounded text-gray-700 transition-colors" title="Uzaklaştır">
+                            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0zM10 13V7m0 0v6m0-6h4m-4 0H7"></path>
+                            </svg>
+                        </button>
+                        <button id="panLeftBtn" class="p-1.5 bg-gray-100 hover:bg-gray-200 rounded text-gray-700 transition-colors" title="Sola Kaydır">
+                            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7"></path>
+                            </svg>
+                        </button>
+                        <button id="panRightBtn" class="p-1.5 bg-gray-100 hover:bg-gray-200 rounded text-gray-700 transition-colors" title="Sağa Kaydır">
+                            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"></path>
+                            </svg>
+                        </button>
+                        <button id="resetZoomBtn" class="p-1.5 bg-blue-600 hover:bg-blue-700 rounded text-white transition-colors" title="Grafiği Sıfırla">
+                            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"></path>
+                            </svg>
+                        </button>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Gösterge Seçenekleri -->
+            <div class="px-4 py-2 bg-gray-50 border-t border-gray-200 flex flex-wrap items-center text-sm">
+                <span class="text-gray-600 font-medium mr-3">Göstergeler:</span>
+                
+                <!-- MA Tipi Seçici -->
+                <div class="relative mr-4">
+                    <select id="maTypeSelector" class="text-sm bg-white border border-gray-300 rounded-md px-3 py-1.5 pr-8 focus:outline-none focus:ring-2 focus:ring-blue-500">
+                        <option value="daily" selected>Günlük</option>
+                        <option value="weekly">Haftalık</option>
+                        <option value="monthly">Aylık</option>
+                    </select>
+                </div>
+                
+                <div class="flex flex-wrap gap-2" id="dailyIndicators">
+                    <label class="inline-flex items-center">
+                        <input type="checkbox" class="indicator-checkbox form-checkbox h-4 w-4 text-blue-600 rounded" value="price" checked>
+                        <span class="ml-2 text-gray-700">Fiyat</span>
+                    </label>
+                    <label class="inline-flex items-center">
+                        <input type="checkbox" class="indicator-checkbox form-checkbox h-4 w-4 text-red-500 rounded" value="ma5" checked>
+                        <span class="ml-2 text-gray-700">MA 5</span>
+                    </label>
+                    <label class="inline-flex items-center">
+                        <input type="checkbox" class="indicator-checkbox form-checkbox h-4 w-4 text-green-500 rounded" value="ma10" checked>
+                        <span class="ml-2 text-gray-700">MA 10</span>
+                    </label>
+                    <label class="inline-flex items-center">
+                        <input type="checkbox" class="indicator-checkbox form-checkbox h-4 w-4 text-yellow-500 rounded" value="ma20" checked>
+                        <span class="ml-2 text-gray-700">MA 20</span>
+                    </label>
+                    <label class="inline-flex items-center">
+                        <input type="checkbox" class="indicator-checkbox form-checkbox h-4 w-4 text-purple-500 rounded" value="ma50" checked>
+                        <span class="ml-2 text-gray-700">MA 50</span>
+                    </label>
+                    <label class="inline-flex items-center">
+                        <input type="checkbox" class="indicator-checkbox form-checkbox h-4 w-4 text-indigo-500 rounded" value="ma100">
+                        <span class="ml-2 text-gray-700">MA 100</span>
+                    </label>
+                    <label class="inline-flex items-center">
+                        <input type="checkbox" class="indicator-checkbox form-checkbox h-4 w-4 text-cyan-500 rounded" value="ma200">
+                        <span class="ml-2 text-gray-700">MA 200</span>
+                    </label>
+                </div>
+                
+                <div class="flex flex-wrap gap-2 hidden" id="weeklyIndicators">
+                    <label class="inline-flex items-center">
+                        <input type="checkbox" class="indicator-checkbox form-checkbox h-4 w-4 text-blue-600 rounded" value="price" checked>
+                        <span class="ml-2 text-gray-700">Fiyat</span>
+                    </label>
+                    <label class="inline-flex items-center">
+                        <input type="checkbox" class="indicator-checkbox form-checkbox h-4 w-4 text-red-500 rounded" value="weekly_ma30" checked>
+                        <span class="ml-2 text-gray-700">30 Haftalık</span>
+                    </label>
+                    <label class="inline-flex items-center">
+                        <input type="checkbox" class="indicator-checkbox form-checkbox h-4 w-4 text-green-500 rounded" value="weekly_ma50" checked>
+                        <span class="ml-2 text-gray-700">50 Haftalık</span>
+                    </label>
+                    <label class="inline-flex items-center">
+                        <input type="checkbox" class="indicator-checkbox form-checkbox h-4 w-4 text-yellow-500 rounded" value="weekly_ma100">
+                        <span class="ml-2 text-gray-700">100 Haftalık</span>
+                    </label>
+                    <label class="inline-flex items-center">
+                        <input type="checkbox" class="indicator-checkbox form-checkbox h-4 w-4 text-purple-500 rounded" value="weekly_ma200">
+                        <span class="ml-2 text-gray-700">200 Haftalık</span>
+                    </label>
+                </div>
+                
+                <div class="flex flex-wrap gap-2 hidden" id="monthlyIndicators">
+                    <label class="inline-flex items-center">
+                        <input type="checkbox" class="indicator-checkbox form-checkbox h-4 w-4 text-blue-600 rounded" value="price" checked>
+                        <span class="ml-2 text-gray-700">Fiyat</span>
+                    </label>
+                    <label class="inline-flex items-center">
+                        <input type="checkbox" class="indicator-checkbox form-checkbox h-4 w-4 text-red-500 rounded" value="monthly_ma12" checked>
+                        <span class="ml-2 text-gray-700">12 Aylık</span>
+                    </label>
+                    <label class="inline-flex items-center">
+                        <input type="checkbox" class="indicator-checkbox form-checkbox h-4 w-4 text-green-500 rounded" value="monthly_ma24" checked>
+                        <span class="ml-2 text-gray-700">24 Aylık</span>
+                    </label>
+                    <label class="inline-flex items-center">
+                        <input type="checkbox" class="indicator-checkbox form-checkbox h-4 w-4 text-yellow-500 rounded" value="monthly_ma36">
+                        <span class="ml-2 text-gray-700">36 Aylık</span>
+                    </label>
+                </div>
+            </div>
+        </div>
+        
+        <div class="p-6">
+            <!-- Grafik Hover Bilgisi -->
+            <div id="chartTooltip" class="hidden absolute bg-white py-2 px-3 shadow-lg rounded-lg border border-gray-200 z-50 pointer-events-none transition-opacity opacity-0"></div>
+            
+            <!-- Ana Grafik -->
+            <div class="w-full relative" style="height: 450px;">
+                <canvas id="analysisChart"></canvas>
+            </div>
+            
+            <!-- Geçiş Göstergesi -->
+            <div id="loadingOverlay" class="hidden absolute inset-0 bg-white bg-opacity-70 flex items-center justify-center">
+                <div class="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-700"></div>
+            </div>
+            
+            <!-- Bilgi Göstergesi -->
+            <div id="noDataOverlay" class="hidden absolute inset-0 bg-white bg-opacity-90 flex items-center justify-center">
+                <div class="text-gray-600 text-lg font-medium">Bu aralıkta veri bulunamadı.</div>
+            </div>
+            
+            <!-- Mini Grafik (Navigasyon) -->
+            <div class="mt-6 border-t border-gray-100 pt-4">
+                <div class="relative" style="height: 60px;">
+                    <canvas id="miniChart"></canvas>
+                    <div id="rangeSelector" class="absolute top-0 h-full bg-blue-100 bg-opacity-50 border-2 border-blue-600 rounded" style="width: 30%; left: 70%"></div>
+                </div>
+            </div>
+        </div>
+        
+        <!-- Özet Bilgi Kartları -->
+        <div class="grid grid-cols-2 md:grid-cols-4 gap-6 p-6 bg-gray-50 border-t border-gray-200">
+            <div class="bg-white p-4 rounded-lg shadow-sm border border-gray-100">
+                <div class="text-xs text-gray-500 mb-1">Toplam Veri Sayısı</div>
+                <div class="text-lg font-semibold text-gray-800" id="totalDataCount">{{ dates|length }}</div>
+            </div>
+            <div class="bg-white p-4 rounded-lg shadow-sm border border-gray-100">
+                <div class="text-xs text-gray-500 mb-1">Son Güncelleme</div>
+                <div class="text-lg font-semibold text-gray-800" id="lastUpdate">{{ dates|last }}</div>
+            </div>
+            <div class="bg-white p-4 rounded-lg shadow-sm border border-gray-100">
+                <div class="text-xs text-gray-500 mb-1">Son Değer</div>
+                <div class="text-lg font-semibold text-blue-600" id="lastValue">{{ price_values|last|floatformat:2 }} ₺</div>
+            </div>
+            <div class="bg-white p-4 rounded-lg shadow-sm border border-gray-100">
+                <div class="text-xs text-gray-500 mb-1">Trend</div>
+                <div class="text-lg font-semibold" id="trend">-</div>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Gösterge Açıklamaları -->
+    <div class="bg-white rounded-xl shadow-lg overflow-hidden mt-8 p-6">
+        <h3 class="text-lg font-semibold text-gray-800 mb-4" id="indicatorTitle">Günlük Hareketli Ortalamalar</h3>
+        <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6" id="indicatorLegends">
+            <!-- Bu alan JavaScript tarafından dinamik olarak doldurulacak -->
+        </div>
+    </div>
+</div>
+
+<!-- Cross-hair işaretleyici için stil -->
+<style>
+.crosshair {
+    position: absolute;
+    z-index: 10;
+    pointer-events: none;
+}
+.crosshair-vertical {
+    width: 1px;
+    height: 100%;
+    background-color: rgba(107, 114, 128, 0.3);
+    top: 0;
+}
+.crosshair-horizontal {
+    height: 1px;
+    width: 100%;
+    background-color: rgba(107, 114, 128, 0.3);
+    left: 0;
+}
+</style>
+
+<script src="https://cdn.jsdelivr.net/npm/chart.js@3.9.1/dist/chart.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-zoom@1.2.1/dist/chartjs-plugin-zoom.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/chartjs-adapter-date-fns@2.0.0/dist/chartjs-adapter-date-fns.bundle.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/date-fns@2.28.0/index.min.js"></script>
+
+<script>
+// Verileri hazırla
+var dateLabels = [{% for date in dates %}"{{ date }}"{% if not forloop.last %}, {% endif %}{% endfor %}];
+var priceData = [{% for value in price_values %}{{ value }}{% if not forloop.last %}, {% endif %}{% endfor %}];
+
+// Günlük hareketli ortalamalar
+var ma5Data = [{% for value in ma_5_values %}{{ value }}{% if not forloop.last %}, {% endif %}{% endfor %}];
+var ma10Data = [{% for value in ma_10_values %}{{ value }}{% if not forloop.last %}, {% endif %}{% endfor %}];
+var ma20Data = [{% for value in ma_20_values %}{{ value }}{% if not forloop.last %}, {% endif %}{% endfor %}];
+var ma50Data = [{% for value in ma_50_values %}{{ value }}{% if not forloop.last %}, {% endif %}{% endfor %}];
+var ma100Data = [{% for value in ma_100_values %}{{ value }}{% if not forloop.last %}, {% endif %}{% endfor %}];
+var ma200Data = [{% for value in ma_200_values %}{{ value }}{% if not forloop.last %}, {% endif %}{% endfor %}];
+
+// Haftalık hareketli ortalamalar 
+var weeklyMa30Data = [{% for value in weekly_ma_30_values %}{{ value }}{% if not forloop.last %}, {% endif %}{% endfor %}];
+// Şu anda modelimizde sadece weekly_ma (30 haftalık) var, diğerleri için hesaplama yapılması gerekiyor
+var weeklyMa50Data = [];
+var weeklyMa100Data = [];
+var weeklyMa200Data = [];
+
+// Aylık hareketli ortalamalar
+var monthlyMa12Data = [{% for value in monthly_ma_12_values %}{{ value }}{% if not forloop.last %}, {% endif %}{% endfor %}];
+var monthlyMa24Data = []; // Şu anda 24 aylık hesaplanmıyor
+var monthlyMa36Data = [{% for value in monthly_ma_36_values %}{{ value }}{% if not forloop.last %}, {% endif %}{% endfor %}];
+
+document.addEventListener('DOMContentLoaded', function() {
+    // İstatistik güncelleme işlemi için AJAX
+    const updateStatsBtn = document.getElementById('updateStatsBtn');
+    const updateBtnText = document.getElementById('updateBtnText');
+    const updateIcon = document.getElementById('updateIcon');
+    const updateLoader = document.getElementById('updateLoader');
+    const updateMessage = document.getElementById('updateMessage');
+    
+    // Tarih seçimi ve modal için element referansları
+    const dateSelector = document.getElementById('dateSelector');
+    const dateViewBtn = document.getElementById('dateViewBtn');
+    const dateDetailModal = document.getElementById('dateDetailModal');
+    const closeModalBtn = document.getElementById('closeModalBtn');
+    const closeModalBtnFooter = document.getElementById('closeModalBtnFooter');
+    const selectedDate = document.getElementById('selectedDate');
+    const selectedPrice = document.getElementById('selectedPrice');
+    const selectedPriceChange = document.getElementById('selectedPriceChange');
+    const selectedMA50 = document.getElementById('selectedMA50');
+    const selectedMA100 = document.getElementById('selectedMA100');
+    const selectedMA200 = document.getElementById('selectedMA200');
+    
+    // DOM elementleri
+    const chartContainer = document.querySelector('.w-full.relative');
+    const chartCanvas = document.getElementById('analysisChart');
+    const miniChartCanvas = document.getElementById('miniChart');
+    const rangeSelector = document.getElementById('rangeSelector');
+    const tooltipElement = document.getElementById('chartTooltip');
+    const loadingOverlay = document.getElementById('loadingOverlay');
+    const noDataOverlay = document.getElementById('noDataOverlay');
+    const timeRangeSelector = document.getElementById('timeRangeSelector');
+    const maTypeSelector = document.getElementById('maTypeSelector');
+    const dailyIndicators = document.getElementById('dailyIndicators');
+    const weeklyIndicators = document.getElementById('weeklyIndicators');
+    const monthlyIndicators = document.getElementById('monthlyIndicators');
+    const indicatorCheckboxes = document.querySelectorAll('.indicator-checkbox');
+    
+    // Grafik kontrol butonları
+    const zoomInBtn = document.getElementById('zoomInBtn');
+    const zoomOutBtn = document.getElementById('zoomOutBtn');
+    const panLeftBtn = document.getElementById('panLeftBtn');
+    const panRightBtn = document.getElementById('panRightBtn');
+    const resetZoomBtn = document.getElementById('resetZoomBtn');
+    
+    // Cross-hair işaretleyicileri
+    const crosshairVertical = document.createElement('div');
+    crosshairVertical.className = 'crosshair crosshair-vertical';
+    const crosshairHorizontal = document.createElement('div');
+    crosshairHorizontal.className = 'crosshair crosshair-horizontal';
+    chartContainer.appendChild(crosshairVertical);
+    chartContainer.appendChild(crosshairHorizontal);
+    
+    if (updateStatsBtn) {
+        updateStatsBtn.addEventListener('click', function() {
+            const stockId = this.dataset.stockId;
+            
+            // Buton durumunu güncelle
+            updateBtnText.textContent = 'Güncelleniyor...';
+            updateIcon.classList.add('hidden');
+            updateLoader.classList.remove('hidden');
+            updateStatsBtn.disabled = true;
+            
+            // AJAX isteği gönder
+            fetch(`/stocks/${stockId}/calculate-analysis/`, {
+                method: 'GET',
+                headers: {
+                    'X-Requested-With': 'XMLHttpRequest',
+                    'Content-Type': 'application/json'
+                }
+            })
+            .then(response => response.json())
+            .then(data => {
+                // İşlem sonucu mesajını göster
+                updateMessage.textContent = data.message;
+                updateMessage.classList.remove('hidden');
+                
+                if (data.success) {
+                    updateMessage.classList.add('bg-green-100', 'text-green-800', 'border', 'border-green-200');
+                    
+                    // Başarılıysa sayfayı 1 saniye sonra yenile
+                    setTimeout(() => {
+                        window.location.reload();
+                    }, 1000);
+                } else {
+                    updateMessage.classList.add('bg-red-100', 'text-red-800', 'border', 'border-red-200');
+                    
+                    // Buton durumunu eski haline getir
+                    updateBtnText.textContent = 'İstatistikleri Güncelle';
+                    updateIcon.classList.remove('hidden');
+                    updateLoader.classList.add('hidden');
+                    updateStatsBtn.disabled = false;
+                }
+            })
+            .catch(error => {
+                console.error('Hata:', error);
+                
+                // Hata mesajını göster
+                updateMessage.textContent = 'İşlem sırasında bir hata oluştu.';
+                updateMessage.classList.remove('hidden');
+                updateMessage.classList.add('bg-red-100', 'text-red-800', 'border', 'border-red-200');
+                
+                // Buton durumunu eski haline getir
+                updateBtnText.textContent = 'İstatistikleri Güncelle';
+                updateIcon.classList.remove('hidden');
+                updateLoader.classList.add('hidden');
+                updateStatsBtn.disabled = false;
+            });
+        });
+    }
+
+    // Trend hesaplama
+    var trendElement = document.getElementById('trend');
+    var lastMA5 = ma5Data[ma5Data.length-1];
+    var lastMA20 = ma20Data[ma20Data.length-1];
+    
+    if (lastMA5 > lastMA20) {
+        trendElement.textContent = 'Yükseliş';
+        trendElement.className = 'text-lg font-semibold text-green-600';
+    } else if (lastMA5 < lastMA20) {
+        trendElement.textContent = 'Düşüş';
+        trendElement.className = 'text-lg font-semibold text-red-600';
+    } else {
+        trendElement.textContent = 'Yatay';
+        trendElement.className = 'text-lg font-semibold text-yellow-600';
+    }
+    
+    // Veri aralığı hesaplama 
+    const timeRanges = {
+        '1m': 30,
+        '3m': 90,
+        '6m': 180,
+        '1y': 365,
+        'all': dateLabels.length
+    };
+    
+    // Varsayılan görünüm aralığı (6 ay)
+    let startIndex = Math.max(0, dateLabels.length - timeRanges['6m']);
+    let endIndex = dateLabels.length - 1;
+    
+    // Gösterilecek/gizlenecek göstergeler
+    const visibleIndicators = {
+        price: true,
+        ma5: true, 
+        ma10: true,
+        ma20: true,
+        ma50: true,
+        ma100: false,
+        ma200: false
+    };
+    
+    // Dataset renk tanımları
+    const datasetColors = {
+        price: 'rgba(37, 99, 235, 1)', // blue-600
+        ma5: 'rgba(239, 68, 68, 1)',  // red-500
+        ma10: 'rgba(16, 185, 129, 1)', // green-500
+        ma20: 'rgba(245, 158, 11, 1)', // yellow-500
+        ma50: 'rgba(139, 92, 246, 1)', // purple-500
+        ma100: 'rgba(79, 70, 229, 1)', // indigo-500
+        ma200: 'rgba(6, 182, 212, 1)',  // cyan-500
+        
+        // Haftalık MA için
+        weekly_ma30: 'rgba(239, 68, 68, 1)',  // red-500
+        weekly_ma50: 'rgba(16, 185, 129, 1)', // green-500
+        weekly_ma100: 'rgba(245, 158, 11, 1)', // yellow-500
+        weekly_ma200: 'rgba(139, 92, 246, 1)', // purple-500
+        
+        // Aylık MA için
+        monthly_ma12: 'rgba(239, 68, 68, 1)',  // red-500
+        monthly_ma24: 'rgba(16, 185, 129, 1)', // green-500
+        monthly_ma36: 'rgba(245, 158, 11, 1)'  // yellow-500
+    };
+    
+    // Hareketli ortalama tiplerini ve verileri depolayacak nesneler
+    const maTypes = {
+        daily: {
+            container: dailyIndicators,
+            datasets: [
+                {
+                    label: 'Fiyat',
+                    data: priceData,
+                    borderColor: datasetColors.price,
+                    backgroundColor: 'rgba(37, 99, 235, 0.1)',
+                    borderWidth: 2,
+                    fill: false,
+                    pointRadius: 0,
+                    pointHoverRadius: 5,
+                    tension: 0.1,
+                    order: 1,
+                    yAxisID: 'y'
+                },
+                {
+                    label: '5 Günlük Ortalama',
+                    data: ma5Data,
+                    borderColor: datasetColors.ma5,
+                    borderWidth: 2,
+                    fill: false,
+                    pointRadius: 0,
+                    pointHoverRadius: 5,
+                    tension: 0.1,
+                    order: 2,
+                    yAxisID: 'y'
+                },
+                {
+                    label: '10 Günlük Ortalama',
+                    data: ma10Data,
+                    borderColor: datasetColors.ma10,
+                    borderWidth: 2,
+                    fill: false,
+                    pointRadius: 0,
+                    pointHoverRadius: 5,
+                    tension: 0.1,
+                    order: 3,
+                    yAxisID: 'y'
+                },
+                {
+                    label: '20 Günlük Ortalama',
+                    data: ma20Data,
+                    borderColor: datasetColors.ma20,
+                    borderWidth: 2,
+                    fill: false,
+                    pointRadius: 0,
+                    pointHoverRadius: 5,
+                    tension: 0.1,
+                    order: 4,
+                    yAxisID: 'y'
+                },
+                {
+                    label: '50 Günlük Ortalama',
+                    data: ma50Data,
+                    borderColor: datasetColors.ma50,
+                    borderWidth: 2,
+                    fill: false,
+                    pointRadius: 0,
+                    pointHoverRadius: 5,
+                    tension: 0.1,
+                    order: 5,
+                    yAxisID: 'y'
+                },
+                {
+                    label: '100 Günlük Ortalama',
+                    data: ma100Data,
+                    borderColor: datasetColors.ma100,
+                    borderWidth: 2,
+                    fill: false,
+                    pointRadius: 0,
+                    pointHoverRadius: 5,
+                    tension: 0.1,
+                    order: 6,
+                    yAxisID: 'y',
+                    hidden: true
+                },
+                {
+                    label: '200 Günlük Ortalama',
+                    data: ma200Data,
+                    borderColor: datasetColors.ma200,
+                    borderWidth: 2,
+                    fill: false,
+                    pointRadius: 0,
+                    pointHoverRadius: 5,
+                    tension: 0.1,
+                    order: 7,
+                    yAxisID: 'y',
+                    hidden: true
+                }
+            ]
+        },
+        weekly: {
+            container: weeklyIndicators,
+            datasets: [
+                {
+                    label: 'Fiyat',
+                    data: priceData,
+                    borderColor: datasetColors.price,
+                    backgroundColor: 'rgba(37, 99, 235, 0.1)',
+                    borderWidth: 2,
+                    fill: false,
+                    pointRadius: 0,
+                    pointHoverRadius: 5,
+                    tension: 0.1,
+                    order: 1,
+                    yAxisID: 'y'
+                },
+                {
+                    label: '30 Haftalık Ortalama',
+                    data: weeklyMa30Data,
+                    borderColor: datasetColors.weekly_ma30,
+                    borderWidth: 2,
+                    fill: false,
+                    pointRadius: 0,
+                    pointHoverRadius: 5,
+                    tension: 0.1,
+                    order: 2,
+                    yAxisID: 'y',
+                    hidden: weeklyMa30Data.length === 0
+                },
+                {
+                    label: '50 Haftalık Ortalama',
+                    data: weeklyMa50Data,
+                    borderColor: datasetColors.weekly_ma50,
+                    borderWidth: 2,
+                    fill: false,
+                    pointRadius: 0,
+                    pointHoverRadius: 5,
+                    tension: 0.1,
+                    order: 3,
+                    yAxisID: 'y',
+                    hidden: weeklyMa50Data.length === 0
+                },
+                {
+                    label: '100 Haftalık Ortalama',
+                    data: weeklyMa100Data,
+                    borderColor: datasetColors.weekly_ma100,
+                    borderWidth: 2,
+                    fill: false,
+                    pointRadius: 0,
+                    pointHoverRadius: 5,
+                    tension: 0.1,
+                    order: 4,
+                    yAxisID: 'y',
+                    hidden: true
+                },
+                {
+                    label: '200 Haftalık Ortalama',
+                    data: weeklyMa200Data,
+                    borderColor: datasetColors.weekly_ma200,
+                    borderWidth: 2,
+                    fill: false,
+                    pointRadius: 0,
+                    pointHoverRadius: 5,
+                    tension: 0.1,
+                    order: 5,
+                    yAxisID: 'y',
+                    hidden: true
+                }
+            ]
+        },
+        monthly: {
+            container: monthlyIndicators,
+            datasets: [
+                {
+                    label: 'Fiyat',
+                    data: priceData,
+                    borderColor: datasetColors.price,
+                    backgroundColor: 'rgba(37, 99, 235, 0.1)',
+                    borderWidth: 2,
+                    fill: false,
+                    pointRadius: 0,
+                    pointHoverRadius: 5,
+                    tension: 0.1,
+                    order: 1,
+                    yAxisID: 'y'
+                },
+                {
+                    label: '12 Aylık Ortalama',
+                    data: monthlyMa12Data,
+                    borderColor: datasetColors.monthly_ma12,
+                    borderWidth: 2,
+                    fill: false,
+                    pointRadius: 0,
+                    pointHoverRadius: 5,
+                    tension: 0.1,
+                    order: 2,
+                    yAxisID: 'y',
+                    hidden: monthlyMa12Data.length === 0
+                },
+                {
+                    label: '24 Aylık Ortalama',
+                    data: monthlyMa24Data,
+                    borderColor: datasetColors.monthly_ma24,
+                    borderWidth: 2,
+                    fill: false,
+                    pointRadius: 0,
+                    pointHoverRadius: 5,
+                    tension: 0.1,
+                    order: 3,
+                    yAxisID: 'y',
+                    hidden: monthlyMa24Data.length === 0
+                },
+                {
+                    label: '36 Aylık Ortalama',
+                    data: monthlyMa36Data,
+                    borderColor: datasetColors.monthly_ma36,
+                    borderWidth: 2,
+                    fill: false,
+                    pointRadius: 0,
+                    pointHoverRadius: 5,
+                    tension: 0.1,
+                    order: 4,
+                    yAxisID: 'y',
+                    hidden: monthlyMa36Data.length === 0
+                }
+            ]
+        }
+    };
+
+    // Aktif MA tipini izleyecek değişken
+    let currentMaType = 'daily';
+    
+    // Dataset tanımları (başlangıçta günlük MA ile)
+    let datasets = maTypes.daily.datasets;
+    
+    // Tooltip formatları
+    const tooltipFormat = (ctx) => {
+        const item = ctx.tooltip.dataPoints[0];
+        const datasetLabel = item.dataset.label;
+        const value = item.raw;
+        const date = dateLabels[item.dataIndex];
+        
+        let tooltipContent = `
+            <div class="text-xs font-semibold text-gray-500 mb-1">${date}</div>
+            <div class="flex items-center">
+                <div class="w-3 h-3 rounded-full mr-2" style="background-color: ${item.dataset.borderColor}"></div>
+                <span class="font-semibold">${datasetLabel}: ${value.toFixed(2)} ₺</span>
+            </div>
+        `;
+        
+        // Diğer göstergelerin değerlerini de ekle
+        ctx.tooltip.dataPoints.forEach((point, index) => {
+            if (index === 0) return; // İlk elementi zaten gösterdik
+            
+            tooltipContent += `
+                <div class="flex items-center mt-1">
+                    <div class="w-3 h-3 rounded-full mr-2" style="background-color: ${point.dataset.borderColor}"></div>
+                    <span class="font-semibold">${point.dataset.label}: ${point.raw.toFixed(2)} ₺</span>
+                </div>
+            `;
+        });
+        
+        return tooltipContent;
+    };
+    
+    // Chart.js grafik nesnesi
+    const chart = new Chart(chartCanvas, {
+        type: 'line',
+        data: {
+            labels: dateLabels,
+            datasets: datasets
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            interaction: {
+                mode: 'index',
+                intersect: false
+            },
+            plugins: {
+                tooltip: {
+                    enabled: false,
+                    external: function(context) {
+                        const tooltip = tooltipElement;
+                        
+                        if (context.tooltip.opacity === 0) {
+                            tooltip.style.opacity = 0;
+                            tooltip.classList.add('hidden');
+                            return;
+                        }
+                        
+                        const position = context.chart.canvas.getBoundingClientRect();
+                        tooltip.style.opacity = 1;
+                        tooltip.classList.remove('hidden');
+                        tooltip.style.left = position.left + window.pageXOffset + context.tooltip.caretX + 'px';
+                        tooltip.style.top = position.top + window.pageYOffset + context.tooltip.caretY + 'px';
+                        tooltip.style.font = context.chart.options.font.string;
+                        tooltip.style.padding = context.chart.options.plugins.tooltip.padding + 'px';
+                        
+                        // Tooltip içeriğini güncelle
+                        tooltip.innerHTML = tooltipFormat(context);
+                    }
+                },
+                zoom: {
+                    pan: {
+                        enabled: true,
+                        mode: 'x'
+                    },
+                    zoom: {
+                        wheel: {
+                            enabled: true
+                        },
+                        pinch: {
+                            enabled: true
+                        },
+                        mode: 'x',
+                        onZoomComplete: function({chart}) {
+                            // Mini grafikte gösterim alanını güncelle
+                            updateRangeSelector(chart);
+                        }
+                    }
+                },
+                legend: {
+                    display: false // Kendi gösterge kutularımızı kullanacağız
+                }
+            },
+            scales: {
+                x: {
+                    type: 'category',
+                    title: {
+                        display: true,
+                        text: 'Tarih',
+                        color: '#6b7280',
+                        font: {
+                            size: 12,
+                            weight: 'normal'
+                        }
+                    },
+                    grid: {
+                        display: false
+                    },
+                    ticks: {
+                        maxRotation: 0,
+                        autoSkip: true,
+                        color: '#9ca3af',
+                        font: {
+                            size: 10
+                        }
+                    }
+                },
+                y: {
+                    position: 'left',
+                    title: {
+                        display: true,
+                        text: 'Fiyat (TL)',
+                        color: '#6b7280',
+                        font: {
+                            size: 12,
+                            weight: 'normal'
+                        }
+                    },
+                    beginAtZero: false,
+                    grid: {
+                        color: 'rgba(243, 244, 246, 1)'
+                    },
+                    ticks: {
+                        color: '#9ca3af',
+                        font: {
+                            size: 11
+                        },
+                        callback: function(value) {
+                            return value.toFixed(2) + ' ₺';
+                        }
+                    }
+                }
+            },
+            animation: {
+                duration: 300
+            }
+        }
+    });
+    
+    // Mini navigasyon grafiği
+    const miniChart = new Chart(miniChartCanvas, {
+        type: 'line',
+        data: {
+            labels: dateLabels,
+            datasets: [
+                {
+                    data: priceData,
+                    borderColor: 'rgba(37, 99, 235, 0.6)',
+                    backgroundColor: 'rgba(37, 99, 235, 0.1)',
+                    borderWidth: 1,
+                    fill: true,
+                    pointRadius: 0
+                }
+            ]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            plugins: {
+                tooltip: {
+                    enabled: false
+                },
+                legend: {
+                    display: false
+                }
+            },
+            scales: {
+                x: {
+                    display: false
+                },
+                y: {
+                    display: false
+                }
+            },
+            interaction: {
+                enabled: false
+            },
+            elements: {
+                line: {
+                    tension: 0.1
+                }
+            }
+        }
+    });
+    
+    // RangeSelector kontrolü
+    let isDragging = false;
+    let startX = 0;
+    let rangeWidth = 0;
+    let miniChartWidth = 0;
+    
+    // Mini grafikte gösterim alanını güncelleme fonksiyonu
+    function updateRangeSelector(mainChart) {
+        const min = mainChart.scales.x.min || dateLabels[startIndex];
+        const max = mainChart.scales.x.max || dateLabels[endIndex];
+        
+        const minIndex = dateLabels.indexOf(min);
+        const maxIndex = dateLabels.indexOf(max);
+        
+        if (minIndex === -1 || maxIndex === -1) return;
+        
+        const totalWidth = miniChartCanvas.parentElement.offsetWidth;
+        const minPercent = (minIndex / dateLabels.length) * 100;
+        const maxPercent = (maxIndex / dateLabels.length) * 100;
+        const widthPercent = maxPercent - minPercent;
+        
+        rangeSelector.style.left = minPercent + '%';
+        rangeSelector.style.width = widthPercent + '%';
+    }
+    
+    // Range selector'ın sürükleme işlemleri
+    rangeSelector.addEventListener('mousedown', function(e) {
+        isDragging = true;
+        startX = e.pageX;
+        rangeWidth = rangeSelector.offsetWidth;
+        miniChartWidth = miniChartCanvas.parentElement.offsetWidth;
+        rangeSelector.style.cursor = 'grabbing';
+        e.preventDefault();
+    });
+    
+    window.addEventListener('mousemove', function(e) {
+        if (!isDragging) return;
+        
+        const diffX = e.pageX - startX;
+        const parentRect = miniChartCanvas.parentElement.getBoundingClientRect();
+        const percentage = (diffX / miniChartWidth) * 100;
+        
+        let currentLeft = parseFloat(rangeSelector.style.left || 0);
+        let newLeft = currentLeft + percentage;
+        
+        if (newLeft < 0) newLeft = 0;
+        if (newLeft + parseFloat(rangeSelector.style.width) > 100) {
+            newLeft = 100 - parseFloat(rangeSelector.style.width);
+        }
+        
+        rangeSelector.style.left = newLeft + '%';
+        startX = e.pageX;
+        
+        // Ana grafiği güncelle
+        const totalDataCount = dateLabels.length;
+        const startDataIndex = Math.floor((newLeft / 100) * totalDataCount);
+        const endDataIndex = Math.min(
+            totalDataCount - 1, 
+            startDataIndex + Math.floor((parseFloat(rangeSelector.style.width) / 100) * totalDataCount)
+        );
+        
+        chart.options.scales.x.min = dateLabels[startDataIndex];
+        chart.options.scales.x.max = dateLabels[endDataIndex];
+        chart.update('none');
+    });
+    
+    window.addEventListener('mouseup', function() {
+        if (isDragging) {
+            isDragging = false;
+            rangeSelector.style.cursor = 'grab';
+        }
+    });
+    
+    // Grafik üzerinde farenin konumunu izleme
+    chartCanvas.addEventListener('mousemove', function(e) {
+        const rect = chartCanvas.getBoundingClientRect();
+        const x = e.clientX - rect.left;
+        const y = e.clientY - rect.top;
+        
+        crosshairVertical.style.left = x + 'px';
+        crosshairHorizontal.style.top = y + 'px';
+        
+        crosshairVertical.style.display = 'block';
+        crosshairHorizontal.style.display = 'block';
+    });
+    
+    chartCanvas.addEventListener('mouseleave', function() {
+        crosshairVertical.style.display = 'none';
+        crosshairHorizontal.style.display = 'none';
+    });
+    
+    // Grafik kontrol butonları
+    zoomInBtn.addEventListener('click', function() {
+        chart.zoom(1.1);
+        updateRangeSelector(chart);
+    });
+    
+    zoomOutBtn.addEventListener('click', function() {
+        chart.zoom(0.9);
+        updateRangeSelector(chart);
+    });
+    
+    panLeftBtn.addEventListener('click', function() {
+        chart.pan({x: 50}, undefined, 'default');
+        updateRangeSelector(chart);
+    });
+    
+    panRightBtn.addEventListener('click', function() {
+        chart.pan({x: -50}, undefined, 'default');
+        updateRangeSelector(chart);
+    });
+    
+    resetZoomBtn.addEventListener('click', function() {
+        chart.resetZoom();
+        
+        // Zaman aralığı seçimine göre ayarla
+        const range = timeRangeSelector.value;
+        const desiredDays = timeRanges[range];
+        startIndex = Math.max(0, dateLabels.length - desiredDays);
+        endIndex = dateLabels.length - 1;
+        
+        chart.options.scales.x.min = dateLabels[startIndex];
+        chart.options.scales.x.max = dateLabels[endIndex];
+        chart.update();
+        
+        updateRangeSelector(chart);
+    });
+    
+    // Zaman aralığı değiştiğinde
+    timeRangeSelector.addEventListener('change', function() {
+        const range = this.value;
+        const desiredDays = timeRanges[range];
+        
+        if (range === 'all') {
+            chart.options.scales.x.min = dateLabels[0];
+            chart.options.scales.x.max = dateLabels[dateLabels.length - 1];
+        } else {
+            startIndex = Math.max(0, dateLabels.length - desiredDays);
+            chart.options.scales.x.min = dateLabels[startIndex];
+            chart.options.scales.x.max = dateLabels[dateLabels.length - 1];
+        }
+        
+        chart.update();
+        updateRangeSelector(chart);
+    });
+    
+    // Gösterge tipi değiştiğinde
+    maTypeSelector.addEventListener('change', function() {
+        const selectedType = this.value;
+        
+        // Gösterge konteynerlerini gizle/göster
+        dailyIndicators.classList.add('hidden');
+        weeklyIndicators.classList.add('hidden');
+        monthlyIndicators.classList.add('hidden');
+        
+        maTypes[selectedType].container.classList.remove('hidden');
+        
+        // Aktif MA tipini güncelle
+        currentMaType = selectedType;
+        
+        // Chart verilerini güncelle
+        chart.data.datasets = maTypes[selectedType].datasets;
+        
+        // Göstergelerin durumunu kontrol et ve yansıt
+        const checkboxes = maTypes[selectedType].container.querySelectorAll('.indicator-checkbox');
+        checkboxes.forEach(checkbox => {
+            const indicator = checkbox.value;
+            let datasetIndex = -1;
+            
+            // Hangi gösterge tipine baktığımızı belirle
+            if (indicator === 'price') {
+                datasetIndex = 0;
+            } else if (selectedType === 'daily') {
+                if (indicator === 'ma5') datasetIndex = 1;
+                else if (indicator === 'ma10') datasetIndex = 2;
+                else if (indicator === 'ma20') datasetIndex = 3;
+                else if (indicator === 'ma50') datasetIndex = 4;
+                else if (indicator === 'ma100') datasetIndex = 5;
+                else if (indicator === 'ma200') datasetIndex = 6;
+            } else if (selectedType === 'weekly') {
+                if (indicator === 'weekly_ma30') datasetIndex = 1;
+                else if (indicator === 'weekly_ma50') datasetIndex = 2;
+                else if (indicator === 'weekly_ma100') datasetIndex = 3;
+                else if (indicator === 'weekly_ma200') datasetIndex = 4;
+            } else if (selectedType === 'monthly') {
+                if (indicator === 'monthly_ma12') datasetIndex = 1;
+                else if (indicator === 'monthly_ma24') datasetIndex = 2;
+                else if (indicator === 'monthly_ma36') datasetIndex = 3;
+            }
+            
+            if (datasetIndex !== -1) {
+                chart.setDatasetVisibility(datasetIndex, checkbox.checked);
+            }
+        });
+        
+        chart.update();
+        
+        // Gösterge açıklamalarını güncelle
+        updateLegendDescription();
+    });
+    
+    // Gösterge seçeneklerini dinle
+    const allCheckboxes = document.querySelectorAll('.indicator-checkbox');
+    allCheckboxes.forEach(checkbox => {
+        checkbox.addEventListener('change', function() {
+            const indicator = this.value;
+            const activeDatasets = maTypes[currentMaType].datasets;
+            
+            let datasetIndex = -1;
+            
+            // Hangi gösterge tipine baktığımızı belirle
+            if (indicator === 'price') {
+                // Fiyat için her zaman ilk dataset
+                datasetIndex = 0;
+            } else if (currentMaType === 'daily') {
+                // Günlük göstergeler için
+                if (indicator === 'ma5') datasetIndex = 1;
+                else if (indicator === 'ma10') datasetIndex = 2;
+                else if (indicator === 'ma20') datasetIndex = 3;
+                else if (indicator === 'ma50') datasetIndex = 4;
+                else if (indicator === 'ma100') datasetIndex = 5;
+                else if (indicator === 'ma200') datasetIndex = 6;
+            } else if (currentMaType === 'weekly') {
+                // Haftalık göstergeler için
+                if (indicator === 'weekly_ma30') datasetIndex = 1;
+                else if (indicator === 'weekly_ma50') datasetIndex = 2;
+                else if (indicator === 'weekly_ma100') datasetIndex = 3;
+                else if (indicator === 'weekly_ma200') datasetIndex = 4;
+            } else if (currentMaType === 'monthly') {
+                // Aylık göstergeler için
+                if (indicator === 'monthly_ma12') datasetIndex = 1;
+                else if (indicator === 'monthly_ma24') datasetIndex = 2;
+                else if (indicator === 'monthly_ma36') datasetIndex = 3;
+            }
+            
+            if (datasetIndex !== -1) {
+                chart.setDatasetVisibility(datasetIndex, this.checked);
+                chart.update();
+                
+                // Gösterge açıklamalarını da güncelle
+                updateLegendDescription();
+            }
+        });
+    });
+    
+    // Başlangıçta zaman aralığına göre görünümü ayarla
+    chart.options.scales.x.min = dateLabels[startIndex];
+    chart.options.scales.x.max = dateLabels[endIndex];
+    chart.update();
+    
+    // Mini grafik range selector'ı başlangıç konumuna getir
+    updateRangeSelector(chart);
+    
+    // Pencere boyutu değiştiğinde grafik konumlarını güncelle
+    window.addEventListener('resize', function() {
+        updateRangeSelector(chart);
+    });
+    
+    // Gösterge açıklamalarını güncelle
+    function updateLegendDescription() {
+        const legendContainer = document.getElementById('indicatorLegends');
+        const titleElement = document.getElementById('indicatorTitle');
+        legendContainer.innerHTML = '';
+        
+        // Periyoda göre başlığı güncelle
+        if (currentMaType === 'daily') {
+            titleElement.textContent = 'Günlük Hareketli Ortalamalar';
+        } else if (currentMaType === 'weekly') {
+            titleElement.textContent = 'Haftalık Hareketli Ortalamalar';
+        } else if (currentMaType === 'monthly') {
+            titleElement.textContent = 'Aylık Hareketli Ortalamalar';
+        }
+        
+        const activeDatasets = maTypes[currentMaType].datasets.filter(ds => !ds.hidden);
+        
+        activeDatasets.forEach(dataset => {
+            const legendItem = document.createElement('div');
+            legendItem.className = 'flex items-center';
+            legendItem.innerHTML = `
+                <div class="w-5 h-5 rounded-full mr-3" style="background-color: ${dataset.borderColor}"></div>
+                <p class="text-gray-700">${dataset.label}</p>
+            `;
+            legendContainer.appendChild(legendItem);
+        });
+    }
+    
+    // Başlangıçta gösterge açıklamalarını oluştur
+    updateLegendDescription();
+    
+    // MA tipi değiştiğinde gösterge açıklamalarını güncelle
+    maTypeSelector.addEventListener('change', updateLegendDescription);
+    
+    // Gösterge seçenekleri değiştiğinde açıklamaları güncelle
+    allCheckboxes.forEach(checkbox => {
+        checkbox.addEventListener('change', updateLegendDescription);
+    });
+
+    // Tarih seçiminin bugünden daha ileri olmaması için max değeri ayarla
+    dateSelector.max = new Date().toISOString().split('T')[0];
+    
+    // Tarih Göster butonuna tıklayınca modalı aç
+    dateViewBtn.addEventListener('click', function() {
+        const selectedDateValue = dateSelector.value;
+        
+        if (!selectedDateValue) {
+            alert('Lütfen önce bir tarih seçiniz!');
+            return;
+        }
+        
+        showDateDetails(selectedDateValue);
+    });
+    
+    // Modal kapatma işlemleri
+    closeModalBtn.addEventListener('click', function() {
+        dateDetailModal.classList.add('hidden');
+    });
+    
+    closeModalBtnFooter.addEventListener('click', function() {
+        dateDetailModal.classList.add('hidden');
+    });
+    
+    // Dışarı tıklayınca modalı kapat
+    dateDetailModal.addEventListener('click', function(e) {
+        if (e.target === dateDetailModal) {
+            dateDetailModal.classList.add('hidden');
+        }
+    });
+    
+    // ESC tuşuna basınca modalı kapat
+    document.addEventListener('keydown', function(e) {
+        if (e.key === 'Escape' && !dateDetailModal.classList.contains('hidden')) {
+            dateDetailModal.classList.add('hidden');
+        }
+    });
+    
+    // Seçilen tarihin detaylarını göster
+    function showDateDetails(dateStr) {
+        // Tarih formatını düzelt (YYYY-MM-DD -> DD.MM.YYYY)
+        const dateParts = dateStr.split('-');
+        const formattedDate = `${dateParts[2]}.${dateParts[1]}.${dateParts[0]}`;
+        
+        // Seçilen tarihi modalda göster
+        selectedDate.textContent = formattedDate;
+        
+        // Veri indeksini bul
+        const dateIndex = dateLabels.indexOf(formattedDate);
+        
+        if (dateIndex === -1) {
+            // Eğer bu tarih için veri yoksa kullanıcıyı bilgilendir
+            selectedPrice.textContent = 'Veri yok';
+            selectedPriceChange.textContent = 'Veri yok';
+            selectedPriceChange.className = 'font-semibold';
+            selectedMA50.textContent = 'Veri yok';
+            selectedMA100.textContent = 'Veri yok';
+            selectedMA200.textContent = 'Veri yok';
+            
+            dateDetailModal.classList.remove('hidden');
+            return;
+        }
+        
+        // Fiyat ve hareketli ortalama değerlerini bul
+        const price = priceData[dateIndex];
+        
+        // Fiyat değişimini hesapla (bir önceki güne göre)
+        let priceChange = 0;
+        let priceChangeClass = 'font-semibold';
+        
+        if (dateIndex > 0) {
+            const prevPrice = priceData[dateIndex - 1];
+            priceChange = ((price - prevPrice) / prevPrice) * 100;
+            
+            priceChangeClass = priceChange > 0 
+                ? 'font-semibold text-green-600'
+                : priceChange < 0 
+                    ? 'font-semibold text-red-600' 
+                    : 'font-semibold text-gray-700';
+        }
+        
+        // MA değerlerini al (eğer varsa)
+        const ma50 = ma50Data[dateIndex] !== undefined ? ma50Data[dateIndex] : 'Veri yok';
+        const ma100 = ma100Data[dateIndex] !== undefined ? ma100Data[dateIndex] : 'Veri yok';
+        const ma200 = ma200Data[dateIndex] !== undefined ? ma200Data[dateIndex] : 'Veri yok';
+        
+        // Modal içeriğini doldur
+        selectedPrice.textContent = `${price.toFixed(2)} ₺`;
+        selectedPriceChange.textContent = priceChange === 0 ? '0.00%' : `${priceChange.toFixed(2)}%`;
+        selectedPriceChange.className = priceChangeClass;
+        
+        selectedMA50.textContent = ma50 !== 'Veri yok' ? `${ma50.toFixed(2)} ₺` : 'Veri yok';
+        selectedMA100.textContent = ma100 !== 'Veri yok' ? `${ma100.toFixed(2)} ₺` : 'Veri yok';
+        selectedMA200.textContent = ma200 !== 'Veri yok' ? `${ma200.toFixed(2)} ₺` : 'Veri yok';
+        
+        // Modalı göster
+        dateDetailModal.classList.remove('hidden');
+    }
+});
+</script>
+
+<!-- Tarih Detay Popup Modal -->
+<div id="dateDetailModal" class="fixed inset-0 z-50 hidden">
+    <div class="bg-black bg-opacity-50 flex items-center justify-center w-full h-full">
+        <div class="bg-white rounded-lg shadow-lg w-full max-w-md transform transition-transform duration-300">
+            <!-- Modal Header -->
+            <div class="p-4 border-b border-gray-200 bg-gradient-to-r from-blue-600 to-indigo-700 rounded-t-lg">
+                <div class="flex justify-between items-center">
+                    <h3 class="text-xl font-semibold text-white" id="modalTitle">Tarih Detayları</h3>
+                    <button id="closeModalBtn" class="text-white hover:text-gray-200">
+                        <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
+                        </svg>
+                    </button>
+                </div>
+            </div>
+            
+            <!-- Modal Body -->
+            <div class="p-5">
+                <div class="mb-4 text-center">
+                    <span class="text-gray-600 text-sm">Seçilen Tarih</span>
+                    <h4 class="text-xl font-bold text-gray-800" id="selectedDate">--/--/----</h4>
+                </div>
+                
+                <div class="bg-blue-50 rounded-lg p-4 mb-4 border border-blue-100">
+                    <div class="font-medium text-blue-800 mb-2">Fiyat Bilgisi</div>
+                    <div class="grid grid-cols-2 gap-3">
+                        <div>
+                            <span class="text-gray-600 text-sm">Kapanış:</span>
+                            <div class="font-semibold text-blue-700" id="selectedPrice">--.-- ₺</div>
+                        </div>
+                        <div>
+                            <span class="text-gray-600 text-sm">% Değişim:</span>
+                            <div id="selectedPriceChange" class="font-semibold">--.--% </div>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="bg-indigo-50 rounded-lg p-4 border border-indigo-100">
+                    <div class="font-medium text-indigo-800 mb-2">Hareketli Ortalamalar</div>
+                    <div class="grid grid-cols-3 gap-3">
+                        <div>
+                            <span class="text-gray-600 text-sm">MA 50:</span>
+                            <div class="font-semibold text-indigo-700" id="selectedMA50">--.-- ₺</div>
+                        </div>
+                        <div>
+                            <span class="text-gray-600 text-sm">MA 100:</span>
+                            <div class="font-semibold text-indigo-700" id="selectedMA100">--.-- ₺</div>
+                        </div>
+                        <div>
+                            <span class="text-gray-600 text-sm">MA 200:</span>
+                            <div class="font-semibold text-indigo-700" id="selectedMA200">--.-- ₺</div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Modal Footer -->
+            <div class="bg-gray-50 p-4 rounded-b-lg flex justify-end">
+                <button id="closeModalBtnFooter" class="px-4 py-2 bg-gray-300 text-gray-800 rounded hover:bg-gray-400 transition-colors">
+                    Kapat
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %} 

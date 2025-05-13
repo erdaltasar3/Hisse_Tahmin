@@ -15,6 +15,7 @@ from django.core.exceptions import ValidationError
 import os
 from django.conf import settings
 import json
+from django.db import transaction
 
 # Create your views here.
 
@@ -435,7 +436,7 @@ def process_stock_data(request, file_id):
             
             for index, row in df.iterrows():
                 try:
-                    date = pd.to_datetime(row['Date']).date()
+                    date = pd.to_datetime(row['Date'], dayfirst=True).date()
                     
                     # Aynı tarihli kayıt var mı kontrol et
                     existing_record = StockPrice.objects.filter(
@@ -901,7 +902,7 @@ def process_all_files(request):
                         # Her bir satırı işle
                         for index, row in df.iterrows():
                             try:
-                                date = pd.to_datetime(row['Date']).date()
+                                date = pd.to_datetime(row['Date'], dayfirst=True).date()
                                 
                                 # Aynı tarihli kayıt var mı kontrol et
                                 if StockPrice.objects.filter(stock=stock, date=date).exists():
@@ -1018,7 +1019,233 @@ def delete_all_stock_prices(request):
 @user_passes_test(is_staff_user)
 def stock_detail(request, stock_id):
     stock = get_object_or_404(Stock, id=stock_id)
-    return render(request, 'Tahmin/stock_detail.html', {'stock': stock})
+    prices = stock.prices.order_by('-date')[:30]
+    return render(request, 'Tahmin/stock_detail.html', {'stock': stock, 'prices': prices})
 
+@login_required
+@user_passes_test(is_staff_user)
+@transaction.atomic
+def calculate_analysis(request, stock_id):
+    stock = get_object_or_404(Stock, id=stock_id)
+    prices = StockPrice.objects.filter(stock=stock).order_by('date')
+    StockAnalysis.objects.filter(stock=stock).delete()
 
+    # Eğer fiyat verisi yoksa uyarı ver
+    if not prices.exists():
+        messages.error(request, f"{stock.name} için fiyat verisi bulunamadı. Önce fiyat verilerini yükleyin.")
+        return JsonResponse({
+            'success': False,
+            'message': f"{stock.name} için fiyat verisi bulunamadı. Önce fiyat verilerini yükleyin."
+        })
 
+    # Günlük, haftalık ve aylık veri dizileri
+    closing_prices = [float(p.closing_price) for p in prices]
+    dates = [p.date for p in prices]
+    
+    # Haftalık ve aylık gruplandırma için pandas kullan
+    df = pd.DataFrame({
+        'date': dates,
+        'price': closing_prices
+    })
+    
+    # Haftanın son günü için haftalık veri oluştur
+    df['year_week'] = df['date'].apply(lambda x: f"{x.year}-{x.isocalendar()[1]}")
+    weekly_df = df.groupby('year_week').last().reset_index()
+    weekly_prices = weekly_df['price'].tolist()
+    
+    # Ayın son günü için aylık veri oluştur
+    df['year_month'] = df['date'].apply(lambda x: f"{x.year}-{x.month}")
+    monthly_df = df.groupby('year_month').last().reset_index()
+    monthly_prices = monthly_df['price'].tolist()
+        
+    # Her bir gün için hareketli ortalamaları hesapla
+    for i, price in enumerate(prices):
+        # Günlük hareketli ortalamalar
+        ma_5 = sum(closing_prices[max(0, i-4):i+1]) / min(i+1, 5)
+        ma_10 = sum(closing_prices[max(0, i-9):i+1]) / min(i+1, 10)
+        ma_20 = sum(closing_prices[max(0, i-19):i+1]) / min(i+1, 20)
+        ma_50 = sum(closing_prices[max(0, i-49):i+1]) / min(i+1, 50)
+        ma_100 = sum(closing_prices[max(0, i-99):i+1]) / min(i+1, 100)
+        ma_200 = sum(closing_prices[max(0, i-199):i+1]) / min(i+1, 200)
+        
+        # Bu günün hangi hafta ve ay içinde olduğunu bul
+        current_date = price.date
+        week_index = weekly_df[weekly_df['date'] <= current_date].index.max()
+        month_index = monthly_df[monthly_df['date'] <= current_date].index.max()
+        
+        # Haftalık hareketli ortalamalar (Eğer haftalık veri yeterliyse)
+        weekly_ma_30 = None
+        weekly_ma_50 = None
+        weekly_ma_100 = None
+        weekly_ma_200 = None
+        
+        if week_index is not None and week_index >= 0:
+            if week_index >= 29:  # 30 haftalık veri varsa
+                weekly_ma_30 = sum(weekly_prices[week_index-29:week_index+1]) / 30
+            if week_index >= 49:  # 50 haftalık veri varsa
+                weekly_ma_50 = sum(weekly_prices[week_index-49:week_index+1]) / 50
+            if week_index >= 99:  # 100 haftalık veri varsa
+                weekly_ma_100 = sum(weekly_prices[week_index-99:week_index+1]) / 100
+            if week_index >= 199:  # 200 haftalık veri varsa
+                weekly_ma_200 = sum(weekly_prices[week_index-199:week_index+1]) / 200
+        
+        # Aylık hareketli ortalamalar (Eğer aylık veri yeterliyse)
+        monthly_ma_12 = None
+        monthly_ma_24 = None
+        monthly_ma_36 = None
+        
+        if month_index is not None and month_index >= 0:
+            if month_index >= 11:  # 12 aylık veri varsa
+                monthly_ma_12 = sum(monthly_prices[month_index-11:month_index+1]) / 12
+            if month_index >= 23:  # 24 aylık veri varsa
+                monthly_ma_24 = sum(monthly_prices[month_index-23:month_index+1]) / 24
+            if month_index >= 35:  # 36 aylık veri varsa
+                monthly_ma_36 = sum(monthly_prices[month_index-35:month_index+1]) / 36
+        
+        # Analiz nesnesini oluştur ve kaydet
+        StockAnalysis.objects.create(
+            stock=stock,
+            date=price.date,
+            # Günlük hareketli ortalamalar
+            ma_5=ma_5,
+            ma_10=ma_10,
+            ma_20=ma_20,
+            ma_50=ma_50,
+            ma_100=ma_100,
+            ma_200=ma_200,
+            
+            # Haftalık hareketli ortalamalar
+            weekly_ma=weekly_ma_30,  # Varsayılan weekly_ma alanına 30 haftalık değeri kaydediyoruz
+            
+            # Ek haftalık ortalamalar için özel alanlar oluşturabiliriz
+            # Şu anda weekly_ma_50, weekly_ma_100 vb. alanlar modelde yok
+            
+            # Aylık hareketli ortalamalar
+            monthly_ma=monthly_ma_12,  # Varsayılan monthly_ma alanına 12 aylık değeri kaydediyoruz
+            
+            # Yıllık hareketli ortalama
+            yearly_ma=monthly_ma_36  # 36 aylık (3 yıllık) ortalamayı yearly_ma olarak kaydediyoruz
+        )
+    
+    # AJAX isteği ise JSON yanıt döndür
+    if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
+        return JsonResponse({
+            'success': True,
+            'message': f"{stock.name} için tüm hareketli ortalamalar (günlük, haftalık, aylık) başarıyla hesaplandı."
+        })
+    
+    # Normal istek ise mesaj göster ve aynı sayfaya yönlendir
+    messages.success(request, f"{stock.name} için tüm hareketli ortalamalar başarıyla hesaplandı.")
+    return redirect('view_stock_analysis', stock_id=stock.id)
+
+@login_required
+@user_passes_test(is_staff_user)
+def view_stock_analysis(request, stock_id):
+    stock = get_object_or_404(Stock, id=stock_id)
+    # İstatistikleri hesaplamaya gerek yok, sadece veritabanından oku
+    analysis_exists = StockAnalysis.objects.filter(stock=stock).exists()
+    
+    if not analysis_exists:
+        messages.warning(request, f"{stock.name} için henüz hesaplanmış istatistik bulunmuyor. Lütfen önce 'İstatistikleri Güncelle' butonuna tıklayın.")
+        return redirect('stock_detail', stock_id=stock.id)
+    
+    # Burada analiz sayfasını render edecek kodunuzu yazın
+    # Örnek olarak:
+    analysis = StockAnalysis.objects.filter(stock=stock).order_by('date')
+    
+    # Tarih ve değerleri listele
+    dates = [a.date.strftime('%d.%m.%Y') for a in analysis]
+    ma_5_values = [float(a.ma_5) for a in analysis]
+    ma_10_values = [float(a.ma_10) for a in analysis]
+    ma_20_values = [float(a.ma_20) for a in analysis]
+    ma_50_values = [float(a.ma_50) for a in analysis] if analysis.filter(ma_50__isnull=False).exists() else []
+    ma_100_values = [float(a.ma_100) for a in analysis] if analysis.filter(ma_100__isnull=False).exists() else []
+    ma_200_values = [float(a.ma_200) for a in analysis] if analysis.filter(ma_200__isnull=False).exists() else []
+    
+    # Haftalık ve aylık hareketli ortalama değerlerini hazırla
+    weekly_ma_values = [float(a.weekly_ma) for a in analysis if a.weekly_ma is not None]
+    monthly_ma_values = [float(a.monthly_ma) for a in analysis if a.monthly_ma is not None]
+    yearly_ma_values = [float(a.yearly_ma) for a in analysis if a.yearly_ma is not None]
+    
+    # Hisse fiyatlarını da al
+    prices = StockPrice.objects.filter(stock=stock).order_by('date')
+    price_dates = [p.date.strftime('%d.%m.%Y') for p in prices]
+    price_values = [float(p.closing_price) for p in prices]
+    
+    return render(request, 'Tahmin/stock_analysis_view.html', {
+        'stock': stock,
+        'dates': dates,
+        'price_dates': price_dates,
+        'price_values': price_values,
+        'ma_5_values': ma_5_values,
+        'ma_10_values': ma_10_values, 
+        'ma_20_values': ma_20_values,
+        'ma_50_values': ma_50_values,
+        'ma_100_values': ma_100_values,
+        'ma_200_values': ma_200_values,
+        # Haftalık ve aylık ortalamalar
+        'weekly_ma_30_values': weekly_ma_values,  # 30 haftalık (model alanında weekly_ma olarak saklanıyor)
+        'monthly_ma_12_values': monthly_ma_values, # 12 aylık (model alanında monthly_ma olarak saklanıyor)
+        'monthly_ma_36_values': yearly_ma_values, # 36 aylık (model alanında yearly_ma olarak saklanıyor)
+    })
+
+@login_required
+@user_passes_test(is_staff_user)
+def stock_analysis_detail(request, stock_id):
+    stock = get_object_or_404(Stock, id=stock_id)
+    prices = StockPrice.objects.filter(stock=stock).order_by('date')
+    price_dates = [p.date.strftime('%d.%m.%Y') for p in prices]
+    price_values = [float(p.closing_price) for p in prices]
+    return render(request, 'Tahmin/stock_analysis_detail.html', {
+        'stock': stock,
+        'price_dates': price_dates,
+        'price_values': price_values,
+    })
+
+@login_required
+@user_passes_test(is_staff_user)
+def start_prediction(request, stock_id):
+    """
+    Hisse tahmini başlatma sayfasını gösterir.
+    Bu sayfada, hisse hakkında temel bilgiler ve tahmin seçenekleri yer alır.
+    """
+    stock = get_object_or_404(Stock, id=stock_id)
+    
+    # Son fiyat verilerini al
+    latest_prices = StockPrice.objects.filter(stock=stock).order_by('-date')[:30]
+    
+    # Son fiyat ve değişim 
+    current_price = latest_prices.first().closing_price if latest_prices.exists() else None
+    
+    # Hareketli ortalama verileri
+    latest_analysis = StockAnalysis.objects.filter(stock=stock).order_by('-date').first()
+    
+    # Temel istatistikler
+    if current_price and latest_analysis:
+        # 50, 100, 200 günlük ortalamalara göre durum
+        vs_ma50 = float(current_price) - float(latest_analysis.ma_50) if latest_analysis.ma_50 else 0
+        vs_ma100 = float(current_price) - float(latest_analysis.ma_100) if latest_analysis.ma_100 else 0
+        vs_ma200 = float(current_price) - float(latest_analysis.ma_200) if latest_analysis.ma_200 else 0
+        
+        # Ortalamalara göre yüzdesel durum
+        vs_ma50_percent = (vs_ma50 / float(latest_analysis.ma_50)) * 100 if latest_analysis.ma_50 else 0
+        vs_ma100_percent = (vs_ma100 / float(latest_analysis.ma_100)) * 100 if latest_analysis.ma_100 else 0
+        vs_ma200_percent = (vs_ma200 / float(latest_analysis.ma_200)) * 100 if latest_analysis.ma_200 else 0
+    else:
+        vs_ma50 = vs_ma100 = vs_ma200 = 0
+        vs_ma50_percent = vs_ma100_percent = vs_ma200_percent = 0
+    
+    context = {
+        'stock': stock,
+        'latest_prices': latest_prices,
+        'current_price': current_price,
+        'latest_analysis': latest_analysis,
+        'vs_ma50': vs_ma50,
+        'vs_ma100': vs_ma100,
+        'vs_ma200': vs_ma200,
+        'vs_ma50_percent': vs_ma50_percent,
+        'vs_ma100_percent': vs_ma100_percent,
+        'vs_ma200_percent': vs_ma200_percent,
+    }
+    
+    return render(request, 'Tahmin/start_prediction.html', context)

@@ -37,5 +37,10 @@ urlpatterns = [
     path('profile/', views.profile_view, name='profile'),
 
     path('stocks/<int:stock_id>/', views.stock_detail, name='stock_detail'),
+    path('stocks/<int:stock_id>/calculate-analysis/', views.calculate_analysis, name='calculate_analysis'),
+    path('stocks/<int:stock_id>/view-analysis/', views.view_stock_analysis, name='view_stock_analysis'),
+    
+    # Tahmin sayfası
+    path('stocks/<int:stock_id>/prediction/', views.start_prediction, name='start_prediction'),
 ]
 

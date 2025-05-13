@@ -1,65 +1,161 @@
 {% extends 'Tahmin/admin_base.html' %}
 
 {% block content %}
-<div class="container mx-auto px-4 sm:px-6 lg:px-8">
-    <h1 class="text-2xl font-semibold text-gray-900 mb-6">{{ stock.name }} Detayları</h1>
-    <div class="bg-white shadow-md rounded-lg p-2 mb-4">
-        <h3 class="text-lg leading-6 font-medium text-gray-900 mb-2">Hisse Bilgileri</h3>
-        <div class="grid grid-cols-1 sm:grid-cols-2 gap-2">
-            <div class="bg-gray-50 p-2 rounded">
-                <dt class="text-sm font-medium text-gray-500">Sembol</dt>
-                <dd class="mt-1 text-sm text-gray-900">{{ stock.symbol }}</dd>
+<div class="container mx-auto px-4 sm:px-6 lg:px-8 flex flex-col md:flex-row gap-8">
+    <div class="md:w-1/3">
+        <h1 class="text-2xl font-semibold text-gray-900 mb-4">{{ stock.name }} Detayları</h1>
+        <div class="bg-white shadow rounded-lg p-3 mb-4 max-w-md">
+            <h3 class="text-base leading-6 font-semibold text-gray-800 mb-2">Hisse Bilgileri</h3>
+            <div class="grid grid-cols-1 gap-2">
+                <div class="flex justify-between items-center bg-gray-50 p-2 rounded">
+                    <span class="text-xs font-medium text-gray-500">Sembol</span>
+                    <span class="text-sm text-gray-900">{{ stock.symbol }}</span>
+                </div>
+                <div class="flex justify-between items-center bg-gray-50 p-2 rounded">
+                    <span class="text-xs font-medium text-gray-500">Sektör</span>
+                    <span class="text-sm text-gray-900">{{ stock.sector }}</span>
+                </div>
+                <div class="flex justify-between items-center bg-gray-50 p-2 rounded">
+                    <span class="text-xs font-medium text-gray-500">Durum</span>
+                    <span class="text-sm text-gray-900">{% if stock.is_active %}Aktif{% else %}Pasif{% endif %}</span>
+                </div>
             </div>
-            <div class="bg-gray-50 p-4 rounded">
-                <dt class="text-sm font-medium text-gray-500">Sektör</dt>
-                <dd class="mt-1 text-sm text-gray-900">{{ stock.sector }}</dd>
-            </div>
-            <div class="bg-gray-50 p-4 rounded">
-                <dt class="text-sm font-medium text-gray-500">Durum</dt>
-                <dd class="mt-1 text-sm text-gray-900">{% if stock.is_active %}Aktif{% else %}Pasif{% endif %}</dd>
+        </div>
+        <!-- İşlem sonuç mesajı -->
+        <div id="updateMessage" class="hidden mb-4 rounded-lg px-4 py-3 text-sm font-medium"></div>
+        
+        <div class="flex justify-center mt-6">
+            <div class="flex space-x-4">
+                <a href="{% url 'view_stock_analysis' stock.id %}" class="px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700 transition flex items-center">
+                    <svg class="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"></path>
+                    </svg>
+                    İstatistikleri Gör
+                </a>
+                <button id="updateStatsBtn" data-stock-id="{{ stock.id }}" class="px-4 py-2 bg-green-600 text-white rounded hover:bg-green-700 transition flex items-center">
+                    <svg id="updateIcon" class="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"></path>
+                    </svg>
+                    <div id="updateLoader" class="hidden mr-2">
+                        <div class="animate-spin rounded-full h-4 w-4 border-b-2 border-white"></div>
+                    </div>
+                    <span id="updateBtnText">İstatistikleri Güncelle</span>
+                </button>
             </div>
         </div>
     </div>
-    <div class="bg-white shadow-md rounded-lg p-4">
-        <h3 class="text-lg leading-6 font-medium text-gray-900 mb-4">Fiyat Grafiği</h3>
-        <canvas id="priceChart"></canvas>
+    <div class="md:w-2/3">
+        <h3 class="text-lg font-semibold text-gray-900 mb-2">Fiyat Geçmişi</h3>
+        <div class="bg-white shadow rounded-lg overflow-x-auto">
+            <div class="overflow-y-auto" style="max-height: 600px;">
+                <table class="min-w-full divide-y divide-gray-200 text-sm">
+                    <thead class="bg-gray-50 sticky top-0">
+                        <tr>
+                            <th class="px-3 py-2 font-medium text-gray-700">Tarih</th>
+                            <th class="px-3 py-2 font-medium text-gray-700">Açılış</th>
+                            <th class="px-3 py-2 font-medium text-gray-700">Kapanış</th>
+                            <th class="px-3 py-2 font-medium text-gray-700">Yüksek</th>
+                            <th class="px-3 py-2 font-medium text-gray-700">Düşük</th>
+                            <th class="px-3 py-2 font-medium text-gray-700">Hacim</th>
+                            <th class="px-3 py-2 font-medium text-gray-700">Değişim (%)</th>
+                        </tr>
+                    </thead>
+                    <tbody class="divide-y divide-gray-100">
+                        {% for price in prices %}
+                        <tr>
+                            <td class="px-3 py-2 whitespace-nowrap">{{ price.date|date:"d.m.Y" }}</td>
+                            <td class="px-3 py-2 whitespace-nowrap">{{ price.opening_price }}</td>
+                            <td class="px-3 py-2 whitespace-nowrap">{{ price.closing_price }}</td>
+                            <td class="px-3 py-2 whitespace-nowrap">{{ price.highest_price }}</td>
+                            <td class="px-3 py-2 whitespace-nowrap">{{ price.lowest_price }}</td>
+                            <td class="px-3 py-2 whitespace-nowrap">{{ price.volume }}</td>
+                            <td class="px-3 py-2 whitespace-nowrap">{{ price.daily_change|floatformat:2 }}</td>
+                        </tr>
+                        {% empty %}
+                        <tr>
+                            <td colspan="7" class="text-center text-gray-400 py-4">Fiyat verisi bulunamadı.</td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
     </div>
 </div>
 
-<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 <script>
-    // Django template değişkenlerini JavaScript değişkenlerine aktarma
-    const priceDates = {{ price_dates|safe }};
-    const priceValues = {{ price_values|safe }};
-
-    const ctx = document.getElementById('priceChart').getContext('2d');
-    const priceChart = new Chart(ctx, {
-        type: 'line',
-        data: {
-            labels: priceDates,
-            datasets: [{
-                label: 'Fiyat',
-                data: priceValues,
-                borderColor: 'rgba(75, 192, 192, 1)',
-                tension: 0.1
-            }]
-        },
-        options: {
-            scales: {
-                x: {
-                    title: {
-                        display: true,
-                        text: 'Tarih'
-                    }
-                },
-                y: {
-                    title: {
-                        display: true,
-                        text: 'Fiyat'
-                    }
-                }
+document.addEventListener('DOMContentLoaded', function() {
+    const updateStatsBtn = document.getElementById('updateStatsBtn');
+    const updateBtnText = document.getElementById('updateBtnText');
+    const updateIcon = document.getElementById('updateIcon');
+    const updateLoader = document.getElementById('updateLoader');
+    const updateMessage = document.getElementById('updateMessage');
+    
+    updateStatsBtn.addEventListener('click', function() {
+        const stockId = this.dataset.stockId;
+        
+        // Buton durumunu güncelle
+        updateBtnText.textContent = 'Güncelleniyor...';
+        updateIcon.classList.add('hidden');
+        updateLoader.classList.remove('hidden');
+        updateStatsBtn.disabled = true;
+        
+        // AJAX isteği gönder
+        fetch(`/stocks/${stockId}/calculate-analysis/`, {
+            method: 'GET',
+            headers: {
+                'X-Requested-With': 'XMLHttpRequest',
+                'Content-Type': 'application/json'
             }
-        }
+        })
+        .then(response => response.json())
+        .then(data => {
+            // İşlem sonucu mesajını göster
+            updateMessage.textContent = data.message;
+            updateMessage.classList.remove('hidden');
+            
+            if (data.success) {
+                updateMessage.classList.add('bg-green-100', 'text-green-800', 'border', 'border-green-200');
+            } else {
+                updateMessage.classList.add('bg-red-100', 'text-red-800', 'border', 'border-red-200');
+            }
+            
+            // 2 saniye sonra mesajı gizle
+            setTimeout(() => {
+                updateMessage.classList.add('hidden');
+                updateMessage.classList.remove(
+                    'bg-green-100', 'text-green-800', 'border', 'border-green-200',
+                    'bg-red-100', 'text-red-800', 'border', 'border-red-200'
+                );
+            }, 2000);
+            
+            // Buton durumunu eski haline getir
+            updateBtnText.textContent = 'İstatistikleri Güncelle';
+            updateIcon.classList.remove('hidden');
+            updateLoader.classList.add('hidden');
+            updateStatsBtn.disabled = false;
+        })
+        .catch(error => {
+            console.error('Hata:', error);
+            
+            // Hata mesajını göster
+            updateMessage.textContent = 'İşlem sırasında bir hata oluştu.';
+            updateMessage.classList.remove('hidden');
+            updateMessage.classList.add('bg-red-100', 'text-red-800', 'border', 'border-red-200');
+            
+            // 2 saniye sonra mesajı gizle
+            setTimeout(() => {
+                updateMessage.classList.add('hidden');
+                updateMessage.classList.remove('bg-red-100', 'text-red-800', 'border', 'border-red-200');
+            }, 2000);
+            
+            // Buton durumunu eski haline getir
+            updateBtnText.textContent = 'İstatistikleri Güncelle';
+            updateIcon.classList.remove('hidden');
+            updateLoader.classList.add('hidden');
+            updateStatsBtn.disabled = false;
+        });
     });
+});
 </script>
 {% endblock %} 
