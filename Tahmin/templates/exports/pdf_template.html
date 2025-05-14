@@ -1,0 +1,362 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{{ report.stock_symbol }} Hisse Senedi Tahmin Raporu</title>
+    <style>
+        @page {
+            size: A4;
+            margin: 2cm;
+        }
+        body {
+            font-family: 'Arial', sans-serif;
+            line-height: 1.6;
+            color: #333;
+            margin: 0;
+            padding: 0;
+        }
+        .header {
+            background-color: #2c3e50;
+            color: white;
+            padding: 20px;
+            text-align: center;
+            border-radius: 5px;
+        }
+        .header h1 {
+            margin: 0;
+            font-size: 24px;
+        }
+        .header p {
+            margin: 5px 0 0;
+            font-size: 14px;
+        }
+        .section {
+            margin: 20px 0;
+        }
+        .section-title {
+            font-size: 18px;
+            font-weight: bold;
+            margin-bottom: 15px;
+            color: #2c3e50;
+            border-bottom: 2px solid #3498db;
+            padding-bottom: 5px;
+        }
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin: 15px 0;
+        }
+        th, td {
+            padding: 8px 10px;
+            text-align: left;
+            border-bottom: 1px solid #ddd;
+        }
+        th {
+            background-color: #f2f2f2;
+            font-weight: bold;
+        }
+        tr:nth-child(even) {
+            background-color: #f9f9f9;
+        }
+        .chart-container {
+            text-align: center;
+            margin: 20px 0;
+        }
+        .chart-title {
+            font-weight: bold;
+            margin-bottom: 10px;
+            color: #2c3e50;
+        }
+        .chart-img {
+            max-width: 100%;
+            height: auto;
+        }
+        .indicator-table {
+            width: 100%;
+            margin-bottom: 20px;
+        }
+        .signal-up {
+            color: #2ecc71;
+            font-weight: bold;
+        }
+        .signal-down {
+            color: #e74c3c;
+            font-weight: bold;
+        }
+        .signal-neutral {
+            color: #3498db;
+            font-weight: bold;
+        }
+        .metrics-container {
+            display: flex;
+            flex-wrap: wrap;
+            justify-content: space-between;
+        }
+        .metric-box {
+            width: 48%;
+            background-color: #f8f9fa;
+            border-radius: 5px;
+            padding: 10px;
+            margin-bottom: 15px;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+        }
+        .metric-title {
+            font-weight: bold;
+            margin-bottom: 5px;
+        }
+        .metric-value {
+            font-size: 18px;
+            color: #2c3e50;
+        }
+        .risk-low {
+            color: #2ecc71;
+            font-weight: bold;
+        }
+        .risk-medium {
+            color: #f39c12;
+            font-weight: bold;
+        }
+        .risk-high {
+            color: #e74c3c;
+            font-weight: bold;
+        }
+        .footer {
+            margin-top: 30px;
+            text-align: center;
+            font-size: 12px;
+            color: #777;
+            border-top: 1px solid #ddd;
+            padding-top: 10px;
+        }
+        .disclaimer {
+            margin-top: 20px;
+            padding: 10px;
+            background-color: #fef9e7;
+            border-left: 4px solid #f1c40f;
+            font-size: 12px;
+        }
+        .page-break {
+            page-break-after: always;
+        }
+    </style>
+</head>
+<body>
+    <!-- Başlık -->
+    <div class="header">
+        <h1>{{ report.stock_symbol }} Hisse Senedi Tahmin Raporu</h1>
+        <p>Oluşturma Tarihi: {{ generation_date }}</p>
+    </div>
+    
+    <!-- Tahmin Özeti -->
+    <div class="section">
+        <h2 class="section-title">Tahmin Özeti</h2>
+        <table>
+            <tr>
+                <th>Parametre</th>
+                <th>Değer</th>
+            </tr>
+            <tr>
+                <td>Hisse Sembolü</td>
+                <td>{{ report.stock_symbol }}</td>
+            </tr>
+            <tr>
+                <td>Hisse Adı</td>
+                <td>{{ report.stock_name }}</td>
+            </tr>
+            <tr>
+                <td>Model</td>
+                <td>{{ report.model_name }}</td>
+            </tr>
+            <tr>
+                <td>Son Fiyat</td>
+                <td>{{ "%.2f"|format(report.last_price) }} TL</td>
+            </tr>
+            <tr>
+                <td>Tahmin Fiyatı</td>
+                <td>{{ "%.2f"|format(report.final_prediction) }} TL</td>
+            </tr>
+            <tr>
+                <td>Değişim Yüzdesi</td>
+                <td>
+                {% if report.percent_change > 0 %}
+                    <span class="signal-up">+{{ "%.2f"|format(report.percent_change) }}%</span>
+                {% elif report.percent_change < 0 %}
+                    <span class="signal-down">{{ "%.2f"|format(report.percent_change) }}%</span>
+                {% else %}
+                    <span class="signal-neutral">{{ "%.2f"|format(report.percent_change) }}%</span>
+                {% endif %}
+                </td>
+            </tr>
+            <tr>
+                <td>Güven Aralığı</td>
+                <td>{{ "%.2f"|format(report.lower_bound) }} - {{ "%.2f"|format(report.upper_bound) }} TL</td>
+            </tr>
+            <tr>
+                <td>Güven Seviyesi</td>
+                <td>%{{ "%.1f"|format(report.confidence_level * 100) }}</td>
+            </tr>
+            <tr>
+                <td>Zaman Ufku</td>
+                <td>{{ report.time_horizon_months }} ay</td>
+            </tr>
+        </table>
+    </div>
+    
+    <!-- Fiyat Tahmin Grafiği -->
+    {% if charts and charts.price_chart %}
+    <div class="section">
+        <h2 class="section-title">Fiyat Tahmin Grafiği</h2>
+        <div class="chart-container">
+            <img class="chart-img" src="{{ charts.price_chart }}" alt="Fiyat Tahmin Grafiği">
+        </div>
+    </div>
+    {% endif %}
+    
+    <!-- Sayfa Sonu -->
+    <div class="page-break"></div>
+    
+    <!-- Teknik Göstergeler -->
+    {% if report.technical_indicators %}
+    <div class="section">
+        <h2 class="section-title">Teknik Göstergeler</h2>
+        <table class="indicator-table">
+            <tr>
+                <th>Gösterge</th>
+                <th>Değer</th>
+                <th>Sinyal</th>
+            </tr>
+            {% for indicator, data in report.technical_indicators.items() %}
+                {% if data is mapping and data.value is defined %}
+                <tr>
+                    <td>{{ indicator }}</td>
+                    <td>{{ data.value }}</td>
+                    <td>
+                        {% if data.signal|lower == 'al' %}
+                            <span class="signal-up">{{ data.signal }}</span>
+                        {% elif data.signal|lower == 'sat' %}
+                            <span class="signal-down">{{ data.signal }}</span>
+                        {% else %}
+                            <span class="signal-neutral">{{ data.signal }}</span>
+                        {% endif %}
+                    </td>
+                </tr>
+                {% endif %}
+            {% endfor %}
+        </table>
+    </div>
+    {% endif %}
+    
+    <!-- Model Performans Metrikleri -->
+    {% if report.metrics %}
+    <div class="section">
+        <h2 class="section-title">Model Performans Metrikleri</h2>
+        <div class="metrics-container">
+            <div class="metric-box">
+                <div class="metric-title">Ortalama Karesel Hata (MSE)</div>
+                <div class="metric-value">{{ "%.4f"|format(report.metrics.mse) }}</div>
+            </div>
+            <div class="metric-box">
+                <div class="metric-title">Kök Ortalama Karesel Hata (RMSE)</div>
+                <div class="metric-value">{{ "%.4f"|format(report.metrics.rmse) }}</div>
+            </div>
+            <div class="metric-box">
+                <div class="metric-title">Ortalama Mutlak Hata (MAE)</div>
+                <div class="metric-value">{{ "%.4f"|format(report.metrics.mae) }}</div>
+            </div>
+            <div class="metric-box">
+                <div class="metric-title">Ortalama Mutlak Yüzde Hata (MAPE)</div>
+                <div class="metric-value">{{ "%.2f"|format(report.metrics.mape) }}%</div>
+            </div>
+            <div class="metric-box">
+                <div class="metric-title">Belirleme Katsayısı (R²)</div>
+                <div class="metric-value">{{ "%.4f"|format(report.metrics.r2) }}</div>
+            </div>
+        </div>
+    </div>
+    {% endif %}
+    
+    <!-- Özellik Önemi -->
+    {% if charts and charts.feature_importance %}
+    <div class="section">
+        <h2 class="section-title">Özellik Önemi</h2>
+        <div class="chart-container">
+            <img class="chart-img" src="{{ charts.feature_importance }}" alt="Özellik Önemi Grafiği">
+        </div>
+    </div>
+    {% endif %}
+    
+    <!-- Sayfa Sonu -->
+    <div class="page-break"></div>
+    
+    <!-- Risk Değerlendirmesi -->
+    {% if report.risk_assessment %}
+    <div class="section">
+        <h2 class="section-title">Risk Değerlendirmesi</h2>
+        <table>
+            <tr>
+                <th>Risk Parametresi</th>
+                <th>Değer</th>
+            </tr>
+            <tr>
+                <td>Risk Seviyesi</td>
+                <td>
+                    {% if report.risk_assessment.risk_level|lower == 'düşük' %}
+                        <span class="risk-low">{{ report.risk_assessment.risk_level }}</span>
+                    {% elif report.risk_assessment.risk_level|lower == 'orta' %}
+                        <span class="risk-medium">{{ report.risk_assessment.risk_level }}</span>
+                    {% else %}
+                        <span class="risk-high">{{ report.risk_assessment.risk_level }}</span>
+                    {% endif %}
+                </td>
+            </tr>
+            <tr>
+                <td>Volatilite</td>
+                <td>{{ "%.2f"|format(report.risk_assessment.volatility * 100) }}%</td>
+            </tr>
+            <tr>
+                <td>Yükseliş Olasılığı</td>
+                <td>{{ "%.2f"|format(report.risk_assessment.uptrend_probability * 100) }}%</td>
+            </tr>
+        </table>
+        
+        <h3 style="margin-top: 20px;">Risk Açıklaması</h3>
+        <p>{{ report.risk_assessment.description }}</p>
+    </div>
+    {% endif %}
+    
+    <!-- SHAP Analizi -->
+    {% if charts and charts.shap_summary %}
+    <div class="section">
+        <h2 class="section-title">SHAP Model Yorumlama</h2>
+        <div class="chart-container">
+            <div class="chart-title">SHAP Özet Analizi</div>
+            <img class="chart-img" src="{{ charts.shap_summary }}" alt="SHAP Özet Grafiği">
+        </div>
+    </div>
+    {% endif %}
+    
+    <!-- Model Karşılaştırması -->
+    {% if charts and charts.model_comparison %}
+    <div class="section">
+        <h2 class="section-title">Model Performans Karşılaştırması</h2>
+        <div class="chart-container">
+            <img class="chart-img" src="{{ charts.model_comparison }}" alt="Model Karşılaştırma Grafiği">
+        </div>
+    </div>
+    {% endif %}
+    
+    <!-- Yasal Uyarı -->
+    <div class="disclaimer">
+        <strong>YASAL UYARI:</strong> Bu rapor yalnızca bilgilendirme amacıyla hazırlanmıştır ve yatırım tavsiyesi niteliği taşımamaktadır.
+        Raporda yer alan tahminler ve analizler, geçmiş verilere dayalı istatistiksel hesaplamalar sonucu elde edilmiştir ve
+        gelecekteki hisse senedi fiyatlarını garanti etmez. Yatırım kararlarınızı bu rapora dayandırmayınız ve profesyonel
+        bir yatırım danışmanına danışınız. Bu raporu hazırlayanlar, içerik kaynaklı herhangi bir zarardan sorumlu tutulamazlar.
+    </div>
+    
+    <!-- Altbilgi -->
+    <div class="footer">
+        <p>Rapor Tarihi: {{ generation_date }} &copy; Tüm Hakları Saklıdır</p>
+    </div>
+</body>
+</html> 

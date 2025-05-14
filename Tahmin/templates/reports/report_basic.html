@@ -1,0 +1,217 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{{ report_title }}</title>
+    <style>
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            line-height: 1.6;
+            color: #333;
+            margin: 0;
+            padding: 0;
+            background-color: #f5f7fa;
+        }
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 20px;
+            background-color: #fff;
+            box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);
+        }
+        .header {
+            background: linear-gradient(to right, #3498db, #2c3e50);
+            color: white;
+            padding: 20px;
+            text-align: center;
+            border-radius: 5px 5px 0 0;
+        }
+        .summary-section {
+            display: flex;
+            justify-content: space-between;
+            flex-wrap: wrap;
+            margin: 20px 0;
+            padding: 20px;
+            background-color: #f1f8ff;
+            border-radius: 5px;
+            border-left: 4px solid #3498db;
+        }
+        .summary-box {
+            flex: 1;
+            min-width: 200px;
+            padding: 15px;
+            margin: 10px;
+            background-color: white;
+            border-radius: 5px;
+            box-shadow: 0 2px 5px rgba(0, 0, 0, 0.1);
+        }
+        .summary-title {
+            font-size: 16px;
+            font-weight: bold;
+            margin-bottom: 10px;
+            color: #2c3e50;
+        }
+        .prediction-value {
+            font-size: 24px;
+            font-weight: bold;
+            margin: 10px 0;
+        }
+        .trend-up {
+            color: #2ecc71;
+        }
+        .trend-down {
+            color: #e74c3c;
+        }
+        .chart-section {
+            margin: 30px 0;
+            text-align: center;
+        }
+        .chart-title {
+            font-size: 18px;
+            margin-bottom: 15px;
+            color: #2c3e50;
+        }
+        .chart-img {
+            max-width: 100%;
+            height: auto;
+            border-radius: 5px;
+            box-shadow: 0 3px 10px rgba(0, 0, 0, 0.1);
+        }
+        .info-section {
+            margin: 30px 0;
+            padding: 20px;
+            background-color: #f9f9f9;
+            border-radius: 5px;
+        }
+        .section-title {
+            font-size: 20px;
+            font-weight: bold;
+            margin-bottom: 15px;
+            color: #2c3e50;
+            border-bottom: 2px solid #3498db;
+            padding-bottom: 5px;
+        }
+        .footer {
+            margin-top: 30px;
+            text-align: center;
+            padding: 20px;
+            background-color: #2c3e50;
+            color: #fff;
+            border-radius: 0 0 5px 5px;
+        }
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin: 15px 0;
+        }
+        th, td {
+            padding: 12px 15px;
+            text-align: left;
+            border-bottom: 1px solid #ddd;
+        }
+        th {
+            background-color: #f2f2f2;
+            font-weight: bold;
+        }
+        tr:hover {
+            background-color: #f5f5f5;
+        }
+        .risk-low {
+            color: #2ecc71;
+            font-weight: bold;
+        }
+        .risk-medium {
+            color: #f39c12;
+            font-weight: bold;
+        }
+        .risk-high {
+            color: #e74c3c;
+            font-weight: bold;
+        }
+        .disclaimer {
+            margin-top: 20px;
+            padding: 10px;
+            background-color: #fef9e7;
+            border-left: 4px solid #f1c40f;
+            font-size: 14px;
+        }
+        @media print {
+            body {
+                background-color: white;
+            }
+            .container {
+                box-shadow: none;
+                max-width: 100%;
+            }
+            .chart-img {
+                max-width: 80%;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>{{ report_title }}</h1>
+            <p>{{ report_type }} | {{ report_date }}</p>
+        </div>
+
+        <div class="summary-section">
+            <div class="summary-box">
+                <div class="summary-title">Son Fiyat</div>
+                <div class="prediction-value">{{ components.summary.last_price|floatformat:2 }} ₺</div>
+            </div>
+            <div class="summary-box">
+                <div class="summary-title">{{ components.summary.time_horizon_months }} Aylık Tahmin</div>
+                <div class="prediction-value {% if components.summary.percent_change > 0 %}trend-up{% elif components.summary.percent_change < 0 %}trend-down{% endif %}">
+                    {{ components.summary.final_prediction|floatformat:2 }} ₺
+                </div>
+                <div>Değişim: <span class="{% if components.summary.percent_change > 0 %}trend-up{% elif components.summary.percent_change < 0 %}trend-down{% endif %}">{{ components.summary.percent_change|floatformat:2 }}%</span></div>
+            </div>
+            <div class="summary-box">
+                <div class="summary-title">Güven Aralığı (%{{ components.summary.confidence_level }})</div>
+                <div>Alt Sınır: {{ components.summary.lower_bound|floatformat:2 }} ₺</div>
+                <div>Üst Sınır: {{ components.summary.upper_bound|floatformat:2 }} ₺</div>
+            </div>
+            <div class="summary-box">
+                <div class="summary-title">Risk Değerlendirmesi</div>
+                <div>
+                    <span class="{% if components.summary.risk_level == 'Düşük' %}risk-low{% elif components.summary.risk_level == 'Orta' %}risk-medium{% else %}risk-high{% endif %}">
+                        {{ components.summary.risk_level }}
+                    </span>
+                </div>
+                <div>Yükseliş Olasılığı: %{{ components.summary.uptrend_probability|floatformat:0 }}</div>
+            </div>
+        </div>
+
+        <div class="chart-section">
+            <div class="chart-title">Fiyat Tahmin Grafiği</div>
+            {% if images.price_chart %}
+            <img src="data:image/png;base64,{{ images.price_chart }}" alt="Fiyat Tahmin Grafiği" class="chart-img">
+            {% else %}
+            <p>Fiyat tahmin grafiği bulunamadı.</p>
+            {% endif %}
+        </div>
+
+        <div class="info-section">
+            <div class="section-title">Tahmin Özeti</div>
+            <p>{{ stock_info.name }} ({{ stock_info.symbol }}) hissesi için {{ components.summary.time_horizon_months }} aylık fiyat tahmini <strong>{{ components.summary.final_prediction|floatformat:2 }} ₺</strong> olarak belirlenmiştir. Bu değer, mevcut {{ components.summary.last_price|floatformat:2 }} ₺ olan fiyata göre <strong>{{ components.summary.percent_change|floatformat:2 }}%</strong> değişim anlamına gelmektedir.</p>
+            
+            <p>Bu tahmin, <strong>{{ components.summary.model_type }}</strong> tarafından üretilmiştir ve %{{ components.summary.confidence_level }} güven seviyesinde <strong>{{ components.summary.lower_bound|floatformat:2 }} ₺</strong> ile <strong>{{ components.summary.upper_bound|floatformat:2 }} ₺</strong> arasında değerler alabilir.</p>
+            
+            <p>Risk değerlendirmesi: <strong class="{% if components.summary.risk_level == 'Düşük' %}risk-low{% elif components.summary.risk_level == 'Orta' %}risk-medium{% else %}risk-high{% endif %}">{{ components.summary.risk_level }}</strong></p>
+            
+            <p>Trend görünümü: <strong>{{ components.summary.trend_comment }}</strong></p>
+        </div>
+
+        <div class="disclaimer">
+            <strong>Uyarı:</strong> Bu rapordaki tahminler, geçmiş verilere dayalı matematiksel modellerle üretilmiştir ve geleceğe yönelik kesin tahminler değildir. Yatırım kararlarınızı verirken bu raporu yalnızca bir bilgi kaynağı olarak değerlendirin ve profesyonel finans danışmanlarına danışın.
+        </div>
+
+        <div class="footer">
+            <p>© {{ report_date|slice:":4" }} Hisse Tahmin Sistemi | {{ report_date }}</p>
+        </div>
+    </div>
+</body>
+</html> 

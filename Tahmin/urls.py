@@ -42,5 +42,21 @@ urlpatterns = [
     
     # Tahmin sayfası
     path('stocks/<int:stock_id>/prediction/', views.start_prediction, name='start_prediction'),
+    path('stocks/<int:stock_id>/run-prediction/', views.run_prediction, name='run_prediction'),
+    path('stocks/<int:stock_id>/prediction-status/', views.get_prediction_status, name='prediction_status'),
+    
+    # Tahmin veri kaynakları sayfası
+    path('prediction-data-sources/', views.prediction_data_sources, name='prediction_data_sources'),
+    
+    # Makroekonomik veriler
+    path('macroeconomic-data/', views.macroeconomic_data, name='macroeconomic_data'),
+    path('macroeconomic-data/add/', views.add_macroeconomic_data, name='add_macroeconomic_data'),
+    path('macroeconomic-data/edit/<int:data_id>/', views.edit_macroeconomic_data, name='edit_macroeconomic_data'),
+    path('macroeconomic-data/delete/<int:data_id>/', views.delete_macroeconomic_data, name='delete_macroeconomic_data'),
+    path('macroeconomic-data/import/', views.import_macroeconomic_data, name='import_macroeconomic_data'),
+    
+    # Enflasyon verileri
+    path('inflation-data/', views.inflation_data, name='inflation_data'),
+    path('inflation-data/delete/<int:data_id>/', views.delete_inflation_data, name='delete_inflation_data'),
 ]
 

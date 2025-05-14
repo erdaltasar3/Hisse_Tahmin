@@ -1,0 +1,143 @@
+{% extends 'Tahmin/admin_base.html' %}
+{% load custom_filters %}
+
+{% block content %}
+<div class="bg-white rounded-lg shadow-lg p-6">
+    <div class="flex justify-between items-center mb-6">
+        <h1 class="text-2xl font-bold text-gray-800">{{ title }}</h1>
+        <div class="flex space-x-3">
+            <a href="{% url 'import_macroeconomic_data' %}#inflation" class="bg-yellow-500 hover:bg-yellow-600 text-white font-bold py-2 px-4 rounded-lg shadow-md transition duration-200">
+                <span class="flex items-center">
+                    <svg class="w-5 h-5 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6v6m0 0v6m0-6h6m-6 0H6"></path>
+                    </svg>
+                    Yeni Veri Ekle
+                </span>
+            </a>
+            <a href="{% url 'macroeconomic_data' %}" class="bg-indigo-600 hover:bg-indigo-700 text-white font-bold py-2 px-4 rounded-lg shadow-md transition duration-200">
+                <span class="flex items-center">
+                    <svg class="w-5 h-5 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"></path>
+                    </svg>
+                    Tüm Makroekonomik Veriler
+                </span>
+            </a>
+        </div>
+    </div>
+
+    {% if not years %}
+    <div class="bg-yellow-50 p-6 rounded-lg border border-yellow-100 text-center">
+        <p class="text-yellow-700 text-lg mb-4">Henüz enflasyon verisi bulunmuyor.</p>
+        <p class="text-yellow-600">
+            Veri eklemek için "Yeni Veri Ekle" butonuna tıklayın ve TÜFE/ÜFE verilerini yükleyin.
+        </p>
+    </div>
+    {% else %}
+    
+    <!-- Yıl Sekmeleri -->
+    <div class="mb-4">
+        <div class="border-b border-gray-200">
+            <ul class="flex flex-wrap -mb-px" id="yearsTabs" role="tablist">
+                {% for year in years %}
+                <li class="mr-2" role="presentation">
+                    <button class="py-2 px-4 text-sm font-medium rounded-t-lg inline-block border-b-2 border-transparent text-gray-500 hover:text-gray-600 hover:border-gray-300 {% if forloop.first %}text-yellow-600 border-yellow-600 active{% endif %}" 
+                            id="year-{{ year }}-tab" 
+                            data-tabs-target="#year-{{ year }}" 
+                            type="button" 
+                            role="tab" 
+                            aria-controls="year-{{ year }}" 
+                            aria-selected="{% if forloop.first %}true{% else %}false{% endif %}">
+                        {{ year }}
+                    </button>
+                </li>
+                {% endfor %}
+            </ul>
+        </div>
+    </div>
+
+    <!-- Yıl İçerikleri -->
+    <div id="yearsTabContent">
+        {% for year in years %}
+        <div class="{% if not forloop.first %}hidden{% endif %} bg-white rounded-lg" id="year-{{ year }}" role="tabpanel" aria-labelledby="year-{{ year }}-tab">
+            <div class="overflow-x-auto">
+                <table class="min-w-full divide-y divide-gray-200">
+                    <thead class="bg-gray-50">
+                        <tr>
+                            <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Ay</th>
+                            <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">TÜFE Aylık (%)</th>
+                            <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">TÜFE Yıllık (%)</th>
+                            <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">ÜFE Aylık (%)</th>
+                            <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">ÜFE Yıllık (%)</th>
+                            <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Kaynak</th>
+                            <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">İşlemler</th>
+                        </tr>
+                    </thead>
+                    <tbody class="bg-white divide-y divide-gray-200">
+                        {% for data in data_by_year|get_item:year %}
+                        <tr class="hover:bg-gray-50">
+                            <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900 font-medium">{{ data.month }}</td>
+                            <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{{ data.tufe_monthly }}</td>
+                            <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{{ data.tufe_yearly }}</td>
+                            <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{{ data.ufe_monthly }}</td>
+                            <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{{ data.ufe_yearly }}</td>
+                            <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{{ data.source }}</td>
+                            <td class="px-6 py-4 whitespace-nowrap text-sm font-medium">
+                                <a href="{% url 'delete_inflation_data' data.id %}" class="text-red-600 hover:text-red-900">
+                                    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"></path>
+                                    </svg>
+                                </a>
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+        {% endfor %}
+    </div>
+    {% endif %}
+
+    <div class="mt-8">
+        <a href="{% url 'prediction_data_sources' %}" class="inline-flex items-center px-4 py-2 border border-gray-300 shadow-sm text-sm font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50">
+            <svg class="mr-2 -ml-1 h-5 w-5 text-gray-500" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 19l-7-7m0 0l7-7m-7 7h18"></path>
+            </svg>
+            Veri Kaynaklarına Dön
+        </a>
+    </div>
+</div>
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    // Yıl sekmeleri işlevselliği
+    const yearTabs = document.querySelectorAll('#yearsTabs button[role="tab"]');
+    const yearContents = document.querySelectorAll('div[role="tabpanel"][aria-labelledby$="-tab"]');
+    
+    yearTabs.forEach(tab => {
+        tab.addEventListener('click', function() {
+            // Tüm sekmeleri pasif yap
+            yearTabs.forEach(t => {
+                t.classList.remove('text-yellow-600', 'border-yellow-600', 'active');
+                t.classList.add('text-gray-500', 'border-transparent');
+                t.setAttribute('aria-selected', 'false');
+            });
+            
+            // Tıklanan sekmeyi aktif yap
+            this.classList.remove('text-gray-500', 'border-transparent');
+            this.classList.add('text-yellow-600', 'border-yellow-600', 'active');
+            this.setAttribute('aria-selected', 'true');
+            
+            // Tüm içerikleri gizle
+            yearContents.forEach(content => {
+                content.classList.add('hidden');
+            });
+            
+            // İlgili içeriği göster
+            const target = this.getAttribute('data-tabs-target');
+            document.querySelector(target).classList.remove('hidden');
+        });
+    });
+});
+</script>
+{% endblock %} 

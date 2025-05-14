@@ -6,7 +6,7 @@ from django.contrib.auth.decorators import login_required, user_passes_test
 from django.utils import timezone
 from datetime import datetime
 from django.contrib.auth.views import LoginView
-from .models import Stock, StockPrice, StockAnalysis, StockFile
+from .models import Stock, StockPrice, StockAnalysis, StockFile, MacroeconomicData, InflationData
 from django.urls import reverse
 from django.http import JsonResponse
 from django.template.loader import render_to_string
@@ -16,6 +16,10 @@ import os
 from django.conf import settings
 import json
 from django.db import transaction
+import logging
+import numpy as np
+import time
+from sklearn.model_selection import train_test_split
 
 # Create your views here.
 
@@ -899,59 +903,96 @@ def process_all_files(request):
                             })
                             continue
 
-                        # Her bir satırı işle
-                        for index, row in df.iterrows():
-                            try:
-                                date = pd.to_datetime(row['Date'], dayfirst=True).date()
-                                
-                                # Aynı tarihli kayıt var mı kontrol et
-                                if StockPrice.objects.filter(stock=stock, date=date).exists():
-                                    duplicate_count += 1
-                                    continue
-
-                                # Hacim verisini dönüştür
-                                volume = convert_volume(row['Volume'])
-                                
-                                if volume is None:
-                                    error_count += 1
-                                    error_details.append(f"Satır {index + 2}: Geçersiz hacim değeri: {row['Volume']}")
-                                    continue
-                            
-                                # StockPrice nesnesini oluştur ve kaydet
-                                stock_price = StockPrice(
-                                    stock=stock,
-                                    date=date,
-                                    opening_price=float(row['Open'].replace(',', '.')),
-                                    highest_price=float(row['High'].replace(',', '.')),
-                                    lowest_price=float(row['Low'].replace(',', '.')),
-                                    closing_price=float(row['Close'].replace(',', '.')),
-                                    volume=volume,
-                                    daily_change=float(row.get('Change', '0').replace('%', '').replace(',', '.'))
-                                )
-                                stock_price.save()
-                                success_count += 1
-
-                            except Exception as e:
-                                error_count += 1
-                                error_details.append(f"Satır {index + 2}: {str(e)}")
-
-                        # StockFile nesnesini güncelle veya oluştur
-                        stock_file, created = StockFile.objects.get_or_create(
-                            stock=stock,
-                            file_path=file_path,
-                            defaults={
-                                'filename': filename,
-                                'uploaded_by': request.user
-                            }
-                        )
+                        # Hisse verisini DataFrame'e dönüştür
+                        data = {
+                            'closing_price': [float(p.closing_price) for p in prices],
+                            'opening_price': [float(p.opening_price) if p.opening_price else 0 for p in prices],
+                            'high_price': [float(p.highest_price) if p.highest_price else 0 for p in prices],
+                            'low_price': [float(p.lowest_price) if p.lowest_price else 0 for p in prices],
+                            'volume': [float(p.volume) if p.volume else 0 for p in prices],
+                            'daily_change': [float(p.daily_change) if p.daily_change else 0 for p in prices],
+                        }
                         
-                        stock_file.is_processed = True
-                        stock_file.success_count = success_count
-                        stock_file.error_count = error_count
-                        stock_file.error_details = '\n'.join(error_details)
-                        stock_file.processed_at = timezone.now()
-                        stock_file.save()
-
+                        # Verileri DataFrame'e dönüştür
+                        df = pd.DataFrame(data)
+                        
+                        # Her yerden erişilebilir tarih bilgisi (rapor oluşturma için gerekli olabilir)
+                        date_strings = [p.date.strftime('%Y-%m-%d') for p in prices]
+                        
+                        # Model dizinini oluştur
+                        model_dir = os.path.join(settings.BASE_DIR, 'models', f"{stock.symbol}")
+                        os.makedirs(model_dir, exist_ok=True)
+                        
+                        # Rapor dizinini oluştur
+                        report_dir = os.path.join(settings.BASE_DIR, 'reports', f"{stock.symbol}")
+                        os.makedirs(report_dir, exist_ok=True)
+                        
+                        # Hisse bilgilerini hazırla
+                        stock_info = {
+                            'symbol': stock.symbol,
+                            'name': stock.name,
+                            'sector': stock.sector if stock.sector else "Genel",
+                            'last_price': float(prices.last().closing_price) if prices.exists() else 0,
+                            'last_update': prices.last().date.strftime('%d.%m.%Y') if prices.exists() else "",
+                            'date_strings': date_strings,  # Tarih bilgilerini de ekleyelim
+                        }
+                        
+                        # Seçilen modeli oluştur
+                        if model_type == 'lstm':
+                            model = LSTMModel(
+                                model_name=f"{stock.symbol}_lstm",
+                                time_horizon=time_horizon,
+                                model_dir=model_dir,
+                                sequence_length=60
+                            )
+                        elif model_type == 'xgboost':
+                            model = XGBoostModel(
+                                model_name=f"{stock.symbol}_xgb",
+                                time_horizon=time_horizon,
+                                model_dir=model_dir
+                            )
+                        else:  # hybrid model
+                            model = HybridModel(
+                                model_name=f"{stock.symbol}_hybrid",
+                                time_horizon=time_horizon,
+                                model_dir=model_dir,
+                                sequence_length=60
+                            )
+                        
+                        # Model LSTM veya Hybrid ise:
+                        if model_type in ['lstm', 'hybrid']:
+                            # Veriyi hazırla ve model mimarisini oluştur
+                            X_train, y_train, _ = model.preprocess_data(df, target_column='closing_price')
+                            
+                            # input_shape parametresini tam olarak belirterek LSTM katmanı için uygun giriş şeklini sağla
+                            input_shape = (X_train.shape[1], X_train.shape[2])
+                            model.build_model(input_shape=input_shape)
+                            
+                            # Veriyi eğitim ve doğrulama kümelerine ayır
+                            X_train, X_val, y_train, y_val = train_test_split(X_train, y_train, test_size=0.2, shuffle=False)
+                            
+                            # Modeli eğit
+                            model.train(X_train, y_train, X_val, y_val, epochs=50, batch_size=32)
+                        else:
+                            # XGBoost modeli için farklı bir pipeline
+                            X_train_scaled, X_val_scaled, y_train_scaled, y_val_scaled, _, _ = model.preprocess_data(df, target_column='closing_price')
+                            model.build_model()
+                            model.train(X_train_scaled, y_train_scaled, X_val_scaled, y_val_scaled)
+                        
+                        # Tahmin yap
+                        predictions = model.predict_future(df, steps=time_horizon * 30)  # Ay başına ~30 gün
+                        
+                        # Rapor oluşturma
+                        report = generate_prediction_report(model, df, stock_info=stock_info, report_type='detailed', output_dir=report_dir)
+                        
+                        # Rapor URL'si
+                        report_url = reverse('view_stock_analysis', kwargs={'stock_id': stock.id})
+                        
+                        # Başarı mesajına tahmin sonucunu da ekleyelim
+                        predicted_end_price = float(predictions[-1]) if len(predictions) > 0 else 0
+                        current_price = float(prices.last().closing_price) if prices.exists() else 0
+                        price_change = ((predicted_end_price - current_price) / current_price * 100) if current_price > 0 else 0
+                        
                         results.append({
                             'stock': stock.symbol,
                             'status': 'success',
@@ -1207,7 +1248,7 @@ def stock_analysis_detail(request, stock_id):
 def start_prediction(request, stock_id):
     """
     Hisse tahmini başlatma sayfasını gösterir.
-    Bu sayfada, hisse hakkında temel bilgiler ve tahmin seçenekleri yer alır.
+    Modelleme ve eğitim işlemleri devre dışı olduğunu bildiren bir mesaj gösterir.
     """
     stock = get_object_or_404(Stock, id=stock_id)
     
@@ -1246,6 +1287,408 @@ def start_prediction(request, stock_id):
         'vs_ma50_percent': vs_ma50_percent,
         'vs_ma100_percent': vs_ma100_percent,
         'vs_ma200_percent': vs_ma200_percent,
+        'disabled_message': 'Model eğitimi ve raporlama işlevleri geçici olarak devre dışı bırakılmıştır.'
     }
     
+    # Kullanıcıya bilgilendirme mesajı göster
+    messages.info(request, 'Model eğitimi ve raporlama işlevleri geçici olarak devre dışı bırakılmıştır.')
+    
     return render(request, 'Tahmin/start_prediction.html', context)
+
+@login_required
+@user_passes_test(is_staff_user)
+def get_prediction_status(request, stock_id):
+    """
+    Modelleme ve eğitimin devre dışı olduğunu bildiren bir yanıt döndürür.
+    AJAX isteği olarak çalışır.
+    """
+    stock = get_object_or_404(Stock, id=stock_id)
+    
+    return JsonResponse({
+        'status': 'info',
+        'message': 'Model eğitimi ve raporlama işlevleri geçici olarak devre dışı bırakılmıştır.',
+        'step': 'none',
+        'error': None
+    })
+
+@login_required
+@user_passes_test(is_staff_user)
+def run_prediction(request, stock_id):
+    """
+    Model eğitimi ve raporlama işlevleri iptal edilmiş versiyon.
+    Bu fonksiyon sadece bilgi mesajı döndürür.
+    """
+    if request.method != 'POST':
+        return JsonResponse({'status': 'error', 'message': 'Yalnızca POST istekleri kabul edilir'})
+    
+    stock = get_object_or_404(Stock, id=stock_id)
+    
+    # Form verilerini al
+    time_horizon = int(request.POST.get('selected_months', 12))
+    model_type = request.POST.get('model_type', 'hybrid')
+    
+    # Logger başlat
+    logger = logging.getLogger("TahminViews")
+    logger.info(f"Tahmin işlevi iptal edildi: {stock.symbol}")
+    
+    # Bilgi mesajı döndür
+    return JsonResponse({
+        'status': 'info',
+        'message': 'Model eğitimi ve raporlama işlevleri geçici olarak devre dışı bırakılmıştır.',
+        'redirect_url': reverse('stock_management')
+    })
+
+@login_required
+@user_passes_test(is_staff_user)
+def prediction_data_sources(request):
+    """
+    Tahmin modeli için gerekli veri kaynaklarını gösteren bir sayfa.
+    """
+    # Sayfa içeriğini template'e gönder
+    context = {
+        'title': 'Tahmin Veri Kaynakları'
+    }
+    return render(request, 'Tahmin/prediction_data_sources.html', context)
+
+@login_required
+@user_passes_test(is_staff_user)
+def macroeconomic_data(request):
+    """
+    Makroekonomik verileri listeleme sayfası
+    """
+    data_list = MacroeconomicData.objects.all().order_by('-date')
+    context = {
+        'data_list': data_list,
+        'title': 'Makroekonomik Veriler'
+    }
+    return render(request, 'Tahmin/macroeconomic_data.html', context)
+
+@login_required
+@user_passes_test(is_staff_user)
+def add_macroeconomic_data(request):
+    """
+    Yeni makroekonomik veri ekleme
+    """
+    if request.method == 'POST':
+        try:
+            date = request.POST.get('date')
+            
+            # Enflasyon verileri
+            tufe = request.POST.get('tufe') or None
+            tufe_yillik = request.POST.get('tufe_yillik') or None
+            ufe = request.POST.get('ufe') or None
+            ufe_yillik = request.POST.get('ufe_yillik') or None
+            
+            # Faiz verileri
+            policy_rate = request.POST.get('policy_rate') or None
+            bond_yield_2y = request.POST.get('bond_yield_2y') or None
+            bond_yield_10y = request.POST.get('bond_yield_10y') or None
+            
+            # Döviz kurları
+            usd_try = request.POST.get('usd_try') or None
+            eur_try = request.POST.get('eur_try') or None
+            
+            # Ekonomik büyüme verileri
+            gdp_growth = request.POST.get('gdp_growth') or None
+            unemployment_rate = request.POST.get('unemployment_rate') or None
+            
+            # Piyasa verileri
+            bist100_close = request.POST.get('bist100_close') or None
+            bist100_change = request.POST.get('bist100_change') or None
+            market_volume = request.POST.get('market_volume') or None
+            
+            # Veriyi kaydet
+            MacroeconomicData.objects.create(
+                date=date,
+                tufe=tufe,
+                tufe_yillik=tufe_yillik,
+                ufe=ufe,
+                ufe_yillik=ufe_yillik,
+                policy_rate=policy_rate,
+                bond_yield_2y=bond_yield_2y,
+                bond_yield_10y=bond_yield_10y,
+                usd_try=usd_try,
+                eur_try=eur_try,
+                gdp_growth=gdp_growth,
+                unemployment_rate=unemployment_rate,
+                bist100_close=bist100_close,
+                bist100_change=bist100_change,
+                market_volume=market_volume
+            )
+            
+            messages.success(request, 'Makroekonomik veri başarıyla eklendi.')
+            return redirect('macroeconomic_data')
+            
+        except Exception as e:
+            messages.error(request, f'Veri eklenirken bir hata oluştu: {str(e)}')
+    
+    context = {
+        'title': 'Makroekonomik Veri Ekle'
+    }
+    return render(request, 'Tahmin/add_macroeconomic_data.html', context)
+
+@login_required
+@user_passes_test(is_staff_user)
+def edit_macroeconomic_data(request, data_id):
+    """
+    Makroekonomik veri düzenleme
+    """
+    data = get_object_or_404(MacroeconomicData, id=data_id)
+    
+    if request.method == 'POST':
+        try:
+            # Tarih verisi
+            data.date = request.POST.get('date')
+            
+            # Enflasyon verileri
+            data.tufe = request.POST.get('tufe') or None
+            data.tufe_yillik = request.POST.get('tufe_yillik') or None
+            data.ufe = request.POST.get('ufe') or None
+            data.ufe_yillik = request.POST.get('ufe_yillik') or None
+            
+            # Faiz verileri
+            data.policy_rate = request.POST.get('policy_rate') or None
+            data.bond_yield_2y = request.POST.get('bond_yield_2y') or None
+            data.bond_yield_10y = request.POST.get('bond_yield_10y') or None
+            
+            # Döviz kurları
+            data.usd_try = request.POST.get('usd_try') or None
+            data.eur_try = request.POST.get('eur_try') or None
+            
+            # Ekonomik büyüme verileri
+            data.gdp_growth = request.POST.get('gdp_growth') or None
+            data.unemployment_rate = request.POST.get('unemployment_rate') or None
+            
+            # Piyasa verileri
+            data.bist100_close = request.POST.get('bist100_close') or None
+            data.bist100_change = request.POST.get('bist100_change') or None
+            data.market_volume = request.POST.get('market_volume') or None
+            
+            # Verileri kaydet
+            data.save()
+            
+            messages.success(request, 'Makroekonomik veri başarıyla güncellendi.')
+            return redirect('macroeconomic_data')
+            
+        except Exception as e:
+            messages.error(request, f'Veri güncellenirken bir hata oluştu: {str(e)}')
+    
+    context = {
+        'data': data,
+        'title': 'Makroekonomik Veri Düzenle'
+    }
+    return render(request, 'Tahmin/edit_macroeconomic_data.html', context)
+
+@login_required
+@user_passes_test(is_staff_user)
+def delete_macroeconomic_data(request, data_id):
+    """
+    Makroekonomik veri silme
+    """
+    data = get_object_or_404(MacroeconomicData, id=data_id)
+    
+    if request.method == 'POST':
+        try:
+            data.delete()
+            messages.success(request, 'Makroekonomik veri başarıyla silindi.')
+            return redirect('macroeconomic_data')
+        except Exception as e:
+            messages.error(request, f'Veri silinirken bir hata oluştu: {str(e)}')
+    
+    context = {
+        'data': data,
+        'title': 'Makroekonomik Veri Sil'
+    }
+    return render(request, 'Tahmin/delete_macroeconomic_data.html', context)
+
+@login_required
+@user_passes_test(is_staff_user)
+def import_macroeconomic_data(request):
+    """
+    Makroekonomik verileri toplu olarak içe aktarma
+    """
+    # OCR ile enflasyon verilerini işleme
+    if request.method == 'POST' and 'inflation_data' in request.POST:
+        try:
+            import json
+            from datetime import datetime
+            
+            # JSON verisini al ve parse et
+            inflation_data_json = request.POST.get('inflation_data')
+            inflation_data = json.loads(inflation_data_json)
+            
+            success_count = 0
+            error_count = 0
+            error_details = []
+            
+            # OCR ile çıkarılan her ay için veri oluştur
+            for item in inflation_data:
+                try:
+                    # Veriyi oluştur veya güncelle
+                    inflation_obj, created = InflationData.objects.update_or_create(
+                        month=item['month'],
+                        year=item['year'],
+                        defaults={
+                            'tufe_monthly': item['tufe_monthly'],
+                            'tufe_yearly': item['tufe_yearly'],
+                            'ufe_monthly': item['ufe_monthly'],
+                            'ufe_yearly': item['ufe_yearly'],
+                            'source': request.POST.get('inflation_source', 'TÜİK')
+                        }
+                    )
+                    success_count += 1
+                    
+                except Exception as e:
+                    error_count += 1
+                    error_details.append(f"{item['month']} {item['year']}: {str(e)}")
+            
+            # Sonucu bildir
+            if success_count > 0:
+                messages.success(request, f'{success_count} adet enflasyon verisi başarıyla kaydedildi.')
+            
+            if error_count > 0:
+                messages.warning(request, f'{error_count} adet veri işlenirken hata oluştu.')
+                for error in error_details[:5]:
+                    messages.error(request, error)
+                if error_count > 5:
+                    messages.error(request, f'... ve {error_count - 5} hata daha.')
+            
+            return redirect('macroeconomic_data')
+            
+        except Exception as e:
+            messages.error(request, f'Enflasyon verileri işlenirken bir hata oluştu: {str(e)}')
+            return redirect('import_macroeconomic_data')
+    
+    # Excel dosyası ile makroekonomik verileri içe aktarma
+    elif request.method == 'POST' and request.FILES.get('data_file'):
+        try:
+            # Dosyayı al
+            data_file = request.FILES['data_file']
+            
+            # Excel dosyasını pandas ile oku
+            import pandas as pd
+            from django.core.files.storage import default_storage
+            from django.core.files.base import ContentFile
+            import os
+            from datetime import datetime
+            
+            # Dosyayı geçici olarak kaydet
+            path = default_storage.save(f'temp/macro_data_{datetime.now().strftime("%Y%m%d%H%M%S")}.xlsx', ContentFile(data_file.read()))
+            full_path = os.path.join(settings.MEDIA_ROOT, path)
+            
+            # Excel'i oku
+            try:
+                df = pd.read_excel(full_path)
+            except Exception as e:
+                # Excel okuma hatası
+                default_storage.delete(path)
+                messages.error(request, f'Excel dosyası okunamadı: {str(e)}')
+                return redirect('import_macroeconomic_data')
+            
+            # Geçici dosyayı sil
+            default_storage.delete(path)
+            
+            # Verileri işle
+            success_count = 0
+            error_count = 0
+            error_details = []
+            
+            for _, row in df.iterrows():
+                try:
+                    # Tarih alanını kontrol et
+                    if 'tarih' not in row or pd.isna(row['tarih']):
+                        error_count += 1
+                        error_details.append(f"Satır {_ + 2}: Tarih alanı eksik")
+                        continue
+                    
+                    # Veriyi oluştur
+                    macro_data = MacroeconomicData(
+                        date=row['tarih'],
+                        tufe=row.get('tufe', None) if 'tufe' in row and not pd.isna(row['tufe']) else None,
+                        tufe_yillik=row.get('tufe_yillik', None) if 'tufe_yillik' in row and not pd.isna(row['tufe_yillik']) else None,
+                        ufe=row.get('ufe', None) if 'ufe' in row and not pd.isna(row['ufe']) else None,
+                        ufe_yillik=row.get('ufe_yillik', None) if 'ufe_yillik' in row and not pd.isna(row['ufe_yillik']) else None,
+                        policy_rate=row.get('policy_rate', None) if 'policy_rate' in row and not pd.isna(row['policy_rate']) else None,
+                        bond_yield_2y=row.get('bond_yield_2y', None) if 'bond_yield_2y' in row and not pd.isna(row['bond_yield_2y']) else None,
+                        bond_yield_10y=row.get('bond_yield_10y', None) if 'bond_yield_10y' in row and not pd.isna(row['bond_yield_10y']) else None,
+                        usd_try=row.get('usd_try', None) if 'usd_try' in row and not pd.isna(row['usd_try']) else None,
+                        eur_try=row.get('eur_try', None) if 'eur_try' in row and not pd.isna(row['eur_try']) else None,
+                        gdp_growth=row.get('gdp_growth', None) if 'gdp_growth' in row and not pd.isna(row['gdp_growth']) else None,
+                        unemployment_rate=row.get('unemployment_rate', None) if 'unemployment_rate' in row and not pd.isna(row['unemployment_rate']) else None,
+                        bist100_close=row.get('bist100_close', None) if 'bist100_close' in row and not pd.isna(row['bist100_close']) else None,
+                        bist100_change=row.get('bist100_change', None) if 'bist100_change' in row and not pd.isna(row['bist100_change']) else None,
+                        market_volume=row.get('market_volume', None) if 'market_volume' in row and not pd.isna(row['market_volume']) else None,
+                    )
+                    
+                    # Veriyi kaydet
+                    macro_data.save()
+                    success_count += 1
+                    
+                except Exception as e:
+                    error_count += 1
+                    error_details.append(f"Satır {_ + 2}: {str(e)}")
+            
+            # Sonucu bildir
+            if success_count > 0:
+                messages.success(request, f'{success_count} adet makroekonomik veri başarıyla içe aktarıldı.')
+            
+            if error_count > 0:
+                messages.warning(request, f'{error_count} adet veri işlenirken hata oluştu.')
+                for error in error_details[:5]:  # İlk 5 hatayı göster
+                    messages.error(request, error)
+                if error_count > 5:
+                    messages.error(request, f'... ve {error_count - 5} hata daha.')
+            
+            return redirect('macroeconomic_data')
+            
+        except Exception as e:
+            messages.error(request, f'Dosya işlenirken bir hata oluştu: {str(e)}')
+    
+    context = {
+        'title': 'Makroekonomik Verileri İçe Aktar'
+    }
+    return render(request, 'Tahmin/import_macroeconomic_data.html', context)
+
+@login_required
+@user_passes_test(is_staff_user)
+def inflation_data(request):
+    """
+    TÜFE ve ÜFE enflasyon verilerini listeleme sayfası
+    """
+    # Enflasyon verilerini yıla göre gruplandır
+    years = InflationData.objects.values_list('year', flat=True).distinct().order_by('-year')
+    
+    data_by_year = {}
+    for year in years:
+        data_by_year[year] = InflationData.objects.filter(year=year).order_by('month')
+    
+    context = {
+        'data_by_year': data_by_year,
+        'years': years,
+        'title': 'Enflasyon Verileri (TÜFE/ÜFE)'
+    }
+    return render(request, 'Tahmin/inflation_data.html', context)
+
+@login_required
+@user_passes_test(is_staff_user)
+def delete_inflation_data(request, data_id):
+    """
+    Enflasyon verisi silme
+    """
+    data = get_object_or_404(InflationData, id=data_id)
+    
+    if request.method == 'POST':
+        try:
+            month = data.month
+            year = data.year
+            data.delete()
+            messages.success(request, f'{year} {month} enflasyon verisi başarıyla silindi.')
+            return redirect('inflation_data')
+        except Exception as e:
+            messages.error(request, f'Veri silinirken bir hata oluştu: {str(e)}')
+    
+    context = {
+        'data': data,
+        'title': 'Enflasyon Verisi Sil'
+    }
+    return render(request, 'Tahmin/delete_inflation_data.html', context)

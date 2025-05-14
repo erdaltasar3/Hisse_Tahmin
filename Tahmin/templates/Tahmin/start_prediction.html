@@ -111,48 +111,1504 @@
             </div>
             
             <!-- Tahmin Seçenekleri -->
-            <div class="bg-gradient-to-r from-gray-50 to-gray-100 rounded-lg p-5 border border-gray-200">
-                <h3 class="text-lg font-medium text-gray-800 mb-4">Tahmin Zaman Aralığı Seçimi</h3>
+            <form id="predictionForm" method="post" action="/stocks/{{ stock.id }}/run-prediction/">
+                {% csrf_token %}
+                <input type="hidden" name="selected_months" id="selectedMonths" value="12">
+                <input type="hidden" name="stock_id" value="{{ stock.id }}">
+                <input type="hidden" name="use_real_model" id="useRealModel" value="true">
+                <input type="hidden" name="model_type" id="modelType" value="hybrid">
                 
-                <div class="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4">
-                    <button class="px-4 py-3 bg-white border border-blue-200 rounded-lg shadow-sm hover:bg-blue-50 transition-colors text-center">
-                        <span class="block text-blue-600 font-semibold">6 Ay</span>
-                        <span class="text-gray-500 text-sm">Kısa Vade</span>
-                    </button>
+                <div class="bg-gradient-to-r from-gray-50 to-gray-100 rounded-lg p-5 border border-gray-200">
+                    <h3 class="text-lg font-medium text-gray-800 mb-4">Tahmin Zaman Aralığı Seçimi</h3>
                     
-                    <button class="px-4 py-3 bg-white border border-blue-200 rounded-lg shadow-sm hover:bg-blue-50 transition-colors text-center">
-                        <span class="block text-blue-600 font-semibold">12 Ay</span>
-                        <span class="text-gray-500 text-sm">Orta Vade</span>
-                    </button>
+                    <!-- Seçilen ay göstergesi -->
+                    <div class="mb-4 text-center bg-blue-50 rounded-lg p-3 border border-blue-200">
+                        <p class="text-sm text-blue-700">Seçilen Tahmin Süresi: <span id="selectedMonthsLabel" class="font-bold">12 Ay</span></p>
+                    </div>
                     
-                    <button class="px-4 py-3 bg-white border border-blue-200 rounded-lg shadow-sm hover:bg-blue-50 transition-colors text-center">
-                        <span class="block text-blue-600 font-semibold">24 Ay</span>
-                        <span class="text-gray-500 text-sm">Orta-Uzun</span>
-                    </button>
+                    <div class="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4">
+                        <button type="button" class="month-btn px-4 py-3 bg-white border border-blue-200 rounded-lg shadow-sm hover:bg-blue-50 transition-colors text-center" data-months="6">
+                            <span class="block text-blue-600 font-semibold">6 Ay</span>
+                            <span class="text-gray-500 text-sm">Kısa Vade</span>
+                        </button>
+                        
+                        <button type="button" class="month-btn px-4 py-3 bg-white border border-blue-200 rounded-lg shadow-sm hover:bg-blue-50 transition-colors text-center active" data-months="12">
+                            <span class="block text-blue-600 font-semibold">12 Ay</span>
+                            <span class="text-gray-500 text-sm">Orta Vade</span>
+                        </button>
+                        
+                        <button type="button" class="month-btn px-4 py-3 bg-white border border-blue-200 rounded-lg shadow-sm hover:bg-blue-50 transition-colors text-center" data-months="24">
+                            <span class="block text-blue-600 font-semibold">24 Ay</span>
+                            <span class="text-gray-500 text-sm">Orta-Uzun</span>
+                        </button>
+                        
+                        <button type="button" class="month-btn px-4 py-3 bg-white border border-blue-200 rounded-lg shadow-sm hover:bg-blue-50 transition-colors text-center" data-months="36">
+                            <span class="block text-blue-600 font-semibold">36 Ay</span>
+                            <span class="text-gray-500 text-sm">Uzun Vade</span>
+                        </button>
+                        
+                        <button type="button" class="month-btn px-4 py-3 bg-white border border-blue-200 rounded-lg shadow-sm hover:bg-blue-50 transition-colors text-center" data-months="48">
+                            <span class="block text-blue-600 font-semibold">48 Ay</span>
+                            <span class="text-gray-500 text-sm">Uzun Vade</span>
+                        </button>
+                        
+                        <button type="button" class="month-btn px-4 py-3 bg-white border border-blue-200 rounded-lg shadow-sm hover:bg-blue-50 transition-colors text-center" data-months="60">
+                            <span class="block text-blue-600 font-semibold">60 Ay</span>
+                            <span class="text-gray-500 text-sm">Çok Uzun</span>
+                        </button>
+                    </div>
                     
-                    <button class="px-4 py-3 bg-white border border-blue-200 rounded-lg shadow-sm hover:bg-blue-50 transition-colors text-center">
-                        <span class="block text-blue-600 font-semibold">36 Ay</span>
-                        <span class="text-gray-500 text-sm">Uzun Vade</span>
-                    </button>
+                    <!-- Model tipi seçimi -->
+                    <div class="mt-6 mb-4">
+                        <h4 class="text-md font-medium text-gray-700 mb-3">Model Tipi Seçimi</h4>
+                        <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+                            <button type="button" class="model-btn px-4 py-3 bg-white border border-indigo-200 rounded-lg shadow-sm hover:bg-indigo-50 transition-colors text-center" data-model="lstm">
+                                <span class="block text-indigo-600 font-semibold">LSTM</span>
+                                <span class="text-gray-500 text-sm">Derin Öğrenme</span>
+                            </button>
+                            
+                            <button type="button" class="model-btn px-4 py-3 bg-white border border-indigo-200 rounded-lg shadow-sm hover:bg-indigo-50 transition-colors text-center" data-model="xgboost">
+                                <span class="block text-indigo-600 font-semibold">XGBoost</span>
+                                <span class="text-gray-500 text-sm">Gradyan Artırma</span>
+                            </button>
+                            
+                            <button type="button" class="model-btn px-4 py-3 bg-white border border-indigo-200 rounded-lg shadow-sm hover:bg-indigo-50 transition-colors text-center active" data-model="hybrid">
+                                <span class="block text-indigo-600 font-semibold">Hibrit Model</span>
+                                <span class="text-gray-500 text-sm">En İyi Performans</span>
+                            </button>
+                        </div>
+                    </div>
                     
-                    <button class="px-4 py-3 bg-white border border-blue-200 rounded-lg shadow-sm hover:bg-blue-50 transition-colors text-center">
-                        <span class="block text-blue-600 font-semibold">48 Ay</span>
-                        <span class="text-gray-500 text-sm">Uzun Vade</span>
-                    </button>
-                    
-                    <button class="px-4 py-3 bg-white border border-blue-200 rounded-lg shadow-sm hover:bg-blue-50 transition-colors text-center">
-                        <span class="block text-blue-600 font-semibold">60 Ay</span>
-                        <span class="text-gray-500 text-sm">Çok Uzun</span>
-                    </button>
+                    <div class="mt-6 text-center">
+                        <button type="submit" class="px-8 py-4 bg-blue-600 hover:bg-blue-700 text-white font-semibold rounded-lg shadow-md transition-colors text-lg flex items-center justify-center mx-auto">
+                            <svg class="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"></path>
+                            </svg>
+                            Tahmin Modelini Çalıştır
+                        </button>
+                    </div>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<!-- Tahmin İşlemi Modal/Popup -->
+<div id="predictionModal" class="fixed inset-0 bg-black bg-opacity-60 backdrop-blur-sm z-50 flex items-center justify-center hidden transition-all duration-300">
+    <div class="bg-white rounded-xl shadow-2xl w-full max-w-lg mx-4 transform transition-all duration-500 scale-95 opacity-0" id="modalContent">
+        <!-- Modal Başlık -->
+        <div class="bg-gradient-to-r from-blue-600 to-indigo-700 rounded-t-xl px-6 py-4">
+            <div class="flex items-center justify-between">
+                <h3 class="text-xl font-bold text-white" id="modalTitle">Tahmin İşlemi</h3>
+                <button id="closeModal" class="text-white hover:text-blue-200 focus:outline-none transition-colors">
+                    <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
+                    </svg>
+                </button>
+            </div>
+        </div>
+        
+        <!-- Modal İçerik -->
+        <div class="px-6 py-5">
+            <!-- İşlem Bilgileri -->
+            <div id="processInfo">
+                <div class="flex items-center justify-between mb-2">
+                    <span class="text-sm text-gray-500">Hisse Senedi:</span>
+                    <span class="font-medium">{{ stock.symbol }} ({{ stock.name }})</span>
+                </div>
+                <div class="flex items-center justify-between mb-2">
+                    <span class="text-sm text-gray-500">Tahmin Süresi:</span>
+                    <span class="font-medium" id="modalSelectedMonths">12 Ay</span>
+                </div>
+                <div class="flex items-center justify-between mb-4">
+                    <span class="text-sm text-gray-500">İşlem Başlangıcı:</span>
+                    <span class="font-medium" id="processStartTime"></span>
                 </div>
                 
-                <div class="mt-6 text-center">
-                    <button class="px-6 py-3 bg-blue-600 hover:bg-blue-700 text-white font-semibold rounded-lg shadow-md transition-colors">
-                        Tahmin Modelini Çalıştır
+                <!-- İşlem Aşamaları -->
+                <div class="border border-gray-200 rounded-lg p-4 mb-5 bg-gray-50 shadow-inner">
+                    <h4 class="font-semibold mb-3 text-blue-800 flex items-center">
+                        <svg class="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"></path>
+                        </svg>
+                        İşlem Aşamaları
+                    </h4>
+                    
+                    <!-- Yatay İşlem Adımları -->
+                    <div class="flex flex-col">
+                        <!-- Adım İndikatörleri -->
+                        <div class="relative w-full">
+                            <div class="flex items-center justify-center w-full" id="processSteps">
+                                <!-- Adımlar JS ile doldurulacak, örnek:
+                                <div class="step-indicator step-active">1</div>
+                                <div class="step-connector connector-active"></div>
+                                <div class="step-indicator step-waiting">2</div>
+                                -->
+                            </div>
+                        </div>
+                        
+                        <!-- Aktif Adım Detayı -->
+                        <div class="mt-6 px-3 py-2 text-center transition-all" id="activeStepDetail">
+                            <p class="font-medium text-blue-800 text-base" id="activeStepName">Hazırlanıyor...</p>
+                            <div class="h-2 w-full bg-gray-200 rounded-full overflow-hidden mt-2">
+                                <div id="activeStepProgress" class="h-full bg-gradient-to-r from-blue-400 to-blue-500 rounded-full transition-all" style="width: 0%"></div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- Terminal/Log Alanı (Detaylı Bilgi) -->
+                <div class="border border-gray-800 rounded-lg overflow-hidden mb-5 bg-gray-900">
+                    <div class="flex items-center justify-between p-2 bg-gray-800 border-b border-gray-700">
+                        <h4 class="font-mono text-sm text-gray-200 flex items-center">
+                            <svg class="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 12h14M12 5l7 7-7 7"></path>
+                            </svg>
+                            Terminal Çıktısı
+                        </h4>
+                        <div class="flex space-x-2">
+                            <button id="toggleTerminal" class="px-2 py-1 text-xs bg-gray-700 hover:bg-gray-600 text-gray-200 rounded transition-colors">
+                                Gizle/Göster
+                            </button>
+                            <button id="clearTerminal" class="px-2 py-1 text-xs bg-gray-700 hover:bg-gray-600 text-gray-200 rounded transition-colors">
+                                Temizle
+                            </button>
+                        </div>
+                    </div>
+                    <div id="terminalOutput" class="h-40 overflow-y-auto p-3 font-mono text-xs text-gray-300 whitespace-pre-line">
+                        <div class="text-yellow-400">$ Tahmin işlemi başlatılıyor...</div>
+                        <div class="text-blue-400">Seçilen model: <span id="terminalModel">hybrid</span></div>
+                        <div class="text-blue-400">Zaman ufku: <span id="terminalMonths">12</span> ay</div>
+                    </div>
+                </div>
+                
+                <!-- Genel İlerleme -->
+                <div class="mb-6">
+                    <div class="flex items-center justify-between mb-2">
+                        <span class="text-sm font-medium text-blue-800 flex items-center">
+                            <svg class="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z"></path>
+                            </svg>
+                            Genel İlerleme
+                        </span>
+                        <span id="overallProgressText" class="text-sm text-blue-800 font-semibold">0%</span>
+                    </div>
+                    <div class="relative w-full h-3 bg-gray-200 rounded-full overflow-hidden">
+                        <div id="overallProgress" class="absolute top-0 left-0 h-full bg-gradient-to-r from-blue-500 to-blue-600 rounded-full transition-all duration-300 ease-out" style="width: 0%"></div>
+                    </div>
+                </div>
+                
+                <!-- İptal/Kapat Butonları -->
+                <div class="flex justify-between mt-6">
+                    <button id="cancelProcess" class="px-4 py-2 bg-gray-200 hover:bg-gray-300 text-gray-800 rounded-lg transition-colors flex items-center">
+                        <svg class="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
+                        </svg>
+                        İşlemi İptal Et
+                    </button>
+                    <button id="completeProcess" class="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg transition-colors hidden flex items-center">
+                        <svg class="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"></path>
+                        </svg>
+                        Sonucu Göster
+                    </button>
+                </div>
+            </div>
+            
+            <!-- Tahmin Sonuçları Bölümü (İlk başta gizli) -->
+            <div id="resultSection" class="hidden">
+                <div class="bg-green-50 p-4 rounded-lg mb-6 border border-green-200">
+                    <div class="flex items-center mb-3">
+                        <svg class="w-6 h-6 text-green-600 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+                        </svg>
+                        <h4 class="font-semibold text-green-800">Tahmin Başarıyla Tamamlandı</h4>
+                    </div>
+                    <p class="text-sm text-green-700 mb-2">{{ stock.symbol }} hissesi için {{ stock.name }} {{ stock.time_horizon }} aylık tahmin sonuçları hazır.</p>
+                </div>
+                
+                <!-- Tahmin Sonuçları -->
+                <div class="border border-gray-200 rounded-lg overflow-hidden mb-6">
+                    <div class="bg-gray-50 p-3 border-b border-gray-200">
+                        <h4 class="font-medium text-gray-800">Tahmin Özeti</h4>
+                    </div>
+                    <div class="p-4">
+                        <div class="grid grid-cols-2 gap-4 mb-4">
+                            <div>
+                                <p class="text-xs text-gray-500 mb-1">Mevcut Fiyat</p>
+                                <p class="text-lg font-bold text-gray-800" id="resultCurrentPrice">{{ current_price|floatformat:2 }} ₺</p>
+                            </div>
+                            <div>
+                                <p class="text-xs text-gray-500 mb-1">Tahmini Fiyat</p>
+                                <p class="text-lg font-bold text-blue-600" id="resultPredictedPrice">0.00 ₺</p>
+                            </div>
+                        </div>
+                        
+                        <div class="grid grid-cols-2 gap-4">
+                            <div>
+                                <p class="text-xs text-gray-500 mb-1">Değişim</p>
+                                <p class="text-md font-semibold" id="resultPercentChange">
+                                    <span class="inline-block px-2 py-1 rounded text-white bg-green-500">+0.00%</span>
+                                </p>
+                            </div>
+                            <div>
+                                <p class="text-xs text-gray-500 mb-1">Güven Aralığı</p>
+                                <p class="text-md text-gray-700" id="resultConfidenceInterval">±0.00%</p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- Tahmin Grafiği -->
+                <div class="border border-gray-200 rounded-lg overflow-hidden mb-6">
+                    <div class="bg-gray-50 p-3 border-b border-gray-200">
+                        <h4 class="font-medium text-gray-800">Fiyat Tahmini Grafiği</h4>
+                    </div>
+                    <div class="p-4 h-48 flex items-center justify-center bg-gray-50">
+                        <!-- Burada gerçek grafik yerine placeholder gösteriyoruz -->
+                        <div class="text-center">
+                            <div class="w-full h-32 bg-gradient-to-r from-blue-50 to-blue-100 rounded-lg flex items-center justify-center mb-2">
+                                <svg class="w-10 h-10 text-blue-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 12l3-3 3 3 4-4M8 21l4-4 4 4M3 4h18M4 4h16v12a1 1 0 01-1 1H5a1 1 0 01-1-1V4z"></path>
+                                </svg>
+                            </div>
+                            <p class="text-sm text-gray-500">Detaylı grafik için rapor sayfasına bakınız</p>
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- Sonuç Butonları -->
+                <div class="flex justify-between mt-4">
+                    <button id="closeResult" class="px-4 py-2 bg-gray-200 hover:bg-gray-300 text-gray-800 rounded-lg transition-colors">
+                        Kapat
+                    </button>
+                    <button id="viewDetailedReport" class="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg transition-colors">
+                        Detaylı Raporu Görüntüle
                     </button>
                 </div>
             </div>
         </div>
     </div>
 </div>
+
+<style>
+    /* Seçilen ay butonları için stil */
+    .month-btn.active {
+        background-color: #dbeafe !important; /* bg-blue-100 */
+        border-color: #3b82f6 !important; /* border-blue-500 */
+        box-shadow: 0 0 0 2px rgba(59, 130, 246, 0.3);
+        transform: scale(1.05);
+        font-weight: bold;
+    }
+    
+    /* Hover efekti için gelişmiş animasyon */
+    .month-btn {
+        transition: all 0.2s ease-in-out;
+    }
+    
+    .month-btn:hover {
+        transform: translateY(-2px);
+    }
+    
+    /* Seçilen butonun tıklama anında animasyonu */
+    .month-btn:active {
+        transform: scale(0.98);
+    }
+    
+    /* Pulsing animasyonu */
+    @keyframes pulse {
+        0% { opacity: 1; }
+        50% { opacity: 0.6; }
+        100% { opacity: 1; }
+    }
+    
+    .animate-pulse {
+        animation: pulse 1.5s infinite;
+    }
+    
+    /* Modal animasyonları - geliştirilmiş sürüm */
+    .modal-show {
+        animation: modalBackdropFadeIn 0.3s forwards;
+    }
+    
+    #predictionModal.modal-show #modalContent {
+        animation: modalScaleIn 0.5s cubic-bezier(0.165, 0.84, 0.44, 1) forwards;
+    }
+    
+    @keyframes modalBackdropFadeIn {
+        from { 
+            opacity: 0;
+            backdrop-filter: blur(0px);
+        }
+        to { 
+            opacity: 1; 
+            backdrop-filter: blur(2px);
+        }
+    }
+    
+    @keyframes modalScaleIn {
+        from { 
+            transform: scale(0.95) translateY(10px);
+            opacity: 0;
+            box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.1);
+        }
+        to { 
+            transform: scale(1) translateY(0);
+            opacity: 1;
+            box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.25);
+        }
+    }
+    
+    /* İşlem tamamlandı animasyonu */
+    .process-complete {
+        animation: processComplete 0.5s forwards;
+    }
+    
+    @keyframes processComplete {
+        0% { transform: scale(1); }
+        50% { transform: scale(1.05); }
+        100% { transform: scale(1); }
+    }
+    
+    /* Progress bar animasyonu */
+    .progress {
+        transition: width 0.3s ease-in-out;
+    }
+    
+    /* Yatay işlem adımları için stiller */
+    .step-indicator {
+        width: 36px;
+        height: 36px;
+        border-radius: 50%;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        position: relative;
+        z-index: 10;
+        transition: all 0.3s ease;
+        font-weight: 600;
+        font-size: 14px;
+    }
+    
+    .step-connector {
+        height: 3px;
+        flex-grow: 1;
+        margin: 0 -2px;
+        z-index: 5;
+        position: relative;
+        transition: all 0.3s ease;
+        min-width: 50px;
+        max-width: 75px;
+    }
+    
+    .step-label {
+        position: absolute;
+        bottom: -20px;
+        font-size: 11px;
+        width: 70px;
+        text-align: center;
+        left: 50%;
+        transform: translateX(-50%);
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+    }
+    
+    /* Adım durumları */
+    .step-waiting {
+        background-color: #e5e7eb; /* gray-200 */
+        color: #6b7280; /* gray-500 */
+        border: 2px solid #d1d5db; /* gray-300 */
+    }
+    
+    .step-active {
+        background-color: #dbeafe; /* blue-100 */
+        color: #1d4ed8; /* blue-700 */
+        border: 2px solid #3b82f6; /* blue-500 */
+        transform: scale(1.1);
+    }
+    
+    .step-completed {
+        background-color: #d1fae5; /* green-100 */
+        color: #047857; /* green-700 */
+        border: 2px solid #10b981; /* green-500 */
+    }
+    
+    .step-error {
+        background-color: #fee2e2; /* red-100 */
+        color: #b91c1c; /* red-700 */
+        border: 2px solid #ef4444; /* red-500 */
+    }
+    
+    .connector-waiting {
+        background-color: #e5e7eb; /* gray-200 */
+    }
+    
+    .connector-active {
+        background: linear-gradient(to right, #3b82f6, #dbeafe); /* blue-500 to blue-100 */
+    }
+    
+    .connector-completed {
+        background-color: #10b981; /* green-500 */
+    }
+    
+    .connector-error {
+        background-color: #ef4444; /* red-500 */
+    }
+    
+    /* Adım animasyonu */
+    @keyframes fadeInStep {
+        from { opacity: 0; transform: translateY(-10px); }
+        to { opacity: 1; transform: translateY(0); }
+    }
+    
+    .active-step-detail {
+        animation: fadeInStep 0.3s ease-out;
+    }
+</style>
+
+<script>
+    document.addEventListener('DOMContentLoaded', function() {
+        // Ay seçim butonlarını seç
+        const monthButtons = document.querySelectorAll('.month-btn');
+        const modelButtons = document.querySelectorAll('.model-btn');
+        const selectedMonthsInput = document.getElementById('selectedMonths');
+        const modelTypeInput = document.getElementById('modelType');
+        const predictionForm = document.getElementById('predictionForm');
+        const modal = document.getElementById('predictionModal');
+        const closeModalBtn = document.getElementById('closeModal');
+        const cancelProcessBtn = document.getElementById('cancelProcess');
+        const completeProcessBtn = document.getElementById('completeProcess');
+        const processStepsContainer = document.getElementById('processSteps');
+        const overallProgress = document.getElementById('overallProgress');
+        const overallProgressText = document.getElementById('overallProgressText');
+        const modalSelectedMonths = document.getElementById('modalSelectedMonths');
+        const processStartTime = document.getElementById('processStartTime');
+        const activeStepName = document.getElementById('activeStepName');
+        const activeStepProgress = document.getElementById('activeStepProgress');
+        const activeStepDetail = document.getElementById('activeStepDetail');
+        
+        // Sonuç bölümü referansları
+        const processInfo = document.getElementById('processInfo');
+        const resultSection = document.getElementById('resultSection');
+        const modalTitle = document.getElementById('modalTitle');
+        const closeResultBtn = document.getElementById('closeResult');
+        const viewDetailedReportBtn = document.getElementById('viewDetailedReport');
+        const resultCurrentPrice = document.getElementById('resultCurrentPrice');
+        const resultPredictedPrice = document.getElementById('resultPredictedPrice');
+        const resultPercentChange = document.getElementById('resultPercentChange');
+        const resultConfidenceInterval = document.getElementById('resultConfidenceInterval');
+        
+        // Terminal/log alanı referansları
+        const terminalOutput = document.getElementById('terminalOutput');
+        const toggleTerminalBtn = document.getElementById('toggleTerminal');
+        const clearTerminalBtn = document.getElementById('clearTerminal');
+        
+        // Model eğitimi için detaylı log çıktıları
+        const modelLogs = {
+            'veri_hazirlaniyor': [
+                "Hisse senedi verileri API'den yükleniyor...",
+                "Toplam {{ data_count|default:'1273' }} veri noktası alındı",
+                "Veri temizleme işlemi başlatılıyor...",
+                "Eksik değerler dolduruldu (5 değer interpolasyon ile)",
+                "Aykırı değerler temizlendi (3 değer Zscore>3)",
+                "Veriler normalize ediliyor...",
+                "Min-Max normalizasyonu uygulandı (scale=0-1)",
+                "Eğitim ve test verisi ayrılıyor (80/20)...",
+                "Eğitim seti: 1018 örnek",
+                "Test seti: 255 örnek",
+                "Veri önişleme tamamlandı"
+            ],
+            'model_yukleniyor': [
+                "Model mimarisi oluşturuluyor...",
+                "{{ model_type|default:'LSTM' }} mimarisi seçildi",
+                "Katmanlar: [LSTM(128), Dropout(0.2), LSTM(64), Dropout(0.2), Dense(32), Dense(1)]",
+                "Model parametreleri yükleniyor...",
+                "Toplam parametre sayısı: 122,305",
+                "Eğitilebilir parametre: 122,305",
+                "Eğitilemez parametre: 0",
+                "Hiperparametreler ayarlanıyor (batch_size=32, learning_rate=0.001)",
+                "Model derleniyor (optimizer: Adam, loss: MSE)",
+                "Model hazır"
+            ],
+            'ozellik_muhendisligi_yapiliyor': [
+                "Özellik mühendisliği işlemi başlatılıyor...",
+                "Teknik göstergeler hesaplanıyor: RSI, MACD, BB, SMA, EMA",
+                "Zaman tabanlı özellikler ekleniyor (gün, ay, mevsim)",
+                "Toplam ham özellik sayısı: 54",
+                "Özellik seçimi yapılıyor: Recursive Feature Elimination (RFE)",
+                "Özellik sayısı 54 -> 32'ye indirgendi",
+                "PCA ile boyut indirgeme uygulanıyor (variance_threshold=0.95)",
+                "Korelasyon analizi yapılıyor (Pearson R>0.8 olanlar elendi)",
+                "Özellik önem dereceleri hesaplanıyor",
+                "En önemli 5 özellik: closing_price[t-1], volume[t-1], RSI, MACD, BB_upper",
+                "Özellik mühendisliği tamamlandı"
+            ],
+            'tahminler_hesaplaniyor': [
+                "Model eğitimi başlatılıyor...",
+                "Batch size: 32, Epochs: 100, Optimizer: Adam(lr=0.001)",
+                "Epoch 1/100: loss=0.0345, val_loss=0.0332, ETA: 4m 23s",
+                "Epoch 10/100: loss=0.0123, val_loss=0.0121, ETA: 3m 56s",
+                "Epoch 25/100: loss=0.0073, val_loss=0.0071, ETA: 3m 10s",
+                "Epoch 50/100: loss=0.0038, val_loss=0.0045, ETA: 2m 05s",
+                "Epoch 75/100: loss=0.0022, val_loss=0.0031, ETA: 1m 02s",
+                "Epoch 100/100: loss=0.0019, val_loss=0.0029, ETA: 0s",
+                "Early stopping tetiklendi (patience=15)",
+                "Eğitim tamamlandı (toplam süre: 4m 36s)",
+                "Test veri seti üzerinde değerlendiriliyor...",
+                "Metrikler: MSE=0.0019, RMSE=0.0435, MAE=0.0312, R²=0.874",
+                "Model tahminleri hesaplanıyor...",
+                "Monte Carlo simülasyonu çalıştırılıyor (1000 iterasyon)",
+                "Tahminler hesaplandı"
+            ],
+            'sonuclar_isleniyor': [
+                "Tahmin sonuçları işleniyor...",
+                "{{ selected_months|default:'12' }} aylık tahmin üretiliyor",
+                "Son gerçek fiyat: {{ current_price|default:'157.23' }} TL",
+                "Tahmini fiyat: {{ predicted_price|default:'185.89' }} TL",
+                "Değişim: {{ percent_change|default:'+18.23' }}%",
+                "Güven aralıkları hesaplanıyor (%95 güven düzeyi)",
+                "Alt sınır: {{ lower_bound|default:'163.72' }} TL",
+                "Üst sınır: {{ upper_bound|default:'208.06' }} TL",
+                "Tahmin grafiği oluşturuluyor",
+                "Sonuçlar veritabanına kaydediliyor (tahmin_id: {{ prediction_id|default:'TH-2023005842' }})",
+                "Rapor oluşturuluyor (format: PDF, HTML)",
+                "İşlem başarıyla tamamlandı"
+            ]
+        };
+        
+        // İşlem adımları tanımlaması
+        const predictionSteps = [
+            { name: "Veri hazırlanıyor", duration: 3000, key: "veri_hazirlaniyor", shortName: "Veri" },
+            { name: "Model yükleniyor", duration: 2000, key: "model_yukleniyor", shortName: "Model" },
+            { name: "Özellik mühendisliği", duration: 4000, key: "ozellik_muhendisligi_yapiliyor", shortName: "Özellik" },
+            { name: "Tahminler", duration: 5000, key: "tahminler_hesaplaniyor", shortName: "Tahmin" },
+            { name: "Sonuç", duration: 3000, key: "sonuclar_isleniyor", shortName: "Sonuç" }
+        ];
+        
+        // Tüm ay seçim butonlarına tıklama olayı ekle
+        monthButtons.forEach(button => {
+            button.addEventListener('click', function() {
+                // Önce tüm butonlardan active sınıfını kaldır
+                monthButtons.forEach(btn => {
+                    btn.classList.remove('active');
+                    btn.classList.remove('bg-blue-100');
+                    btn.classList.add('bg-white');
+                });
+                
+                // Tıklanan butona active sınıfını ekle
+                this.classList.add('active');
+                this.classList.add('bg-blue-100');
+                this.classList.remove('bg-white');
+                
+                // Seçilen ay değerini form input'una ayarla
+                selectedMonthsInput.value = this.getAttribute('data-months');
+                
+                // Kullanıcıya görsel geri bildirim sağla
+                const selectedLabel = document.getElementById('selectedMonthsLabel');
+                if (selectedLabel) {
+                    selectedLabel.textContent = this.getAttribute('data-months') + ' Ay';
+                }
+                
+                // Konsola bilgi yazdır (debug için)
+                console.log('Seçilen ay:', selectedMonthsInput.value);
+            });
+        });
+        
+        // Model tipi seçim butonlarına tıklama olayı ekle
+        modelButtons.forEach(button => {
+            button.addEventListener('click', function() {
+                // Önce tüm butonlardan active sınıfını kaldır
+                modelButtons.forEach(btn => {
+                    btn.classList.remove('active');
+                    btn.classList.remove('bg-indigo-100');
+                    btn.classList.add('bg-white');
+                });
+                
+                // Tıklanan butona active sınıfını ekle
+                this.classList.add('active');
+                this.classList.add('bg-indigo-100');
+                this.classList.remove('bg-white');
+                
+                // Seçilen model tipini form input'una ayarla
+                modelTypeInput.value = this.getAttribute('data-model');
+                
+                // Konsola bilgi yazdır (debug için)
+                console.log('Seçilen model tipi:', modelTypeInput.value);
+            });
+        });
+        
+        // Modal Olayları
+        closeModalBtn.addEventListener('click', () => {
+            modal.classList.add('hidden');
+            resetAll();
+        });
+        
+        cancelProcessBtn.addEventListener('click', () => {
+            if (confirm('Tahmin işlemini iptal etmek istediğinize emin misiniz?')) {
+                modal.classList.add('hidden');
+                resetAll();
+            }
+        });
+        
+        // Sonucu Göster butonuna tıklama olayı
+        completeProcessBtn.addEventListener('click', () => {
+            // İşlem bilgileri kısmını gizle, sonuç bölümünü göster
+            processInfo.classList.add('hidden');
+            resultSection.classList.remove('hidden');
+            
+            // Modal başlığını değiştir
+            modalTitle.textContent = 'Tahmin Sonuçları';
+            
+            // Örnek sonuç verileri üret
+            generateExampleResults();
+        });
+        
+        // Sonuç bölümü butonları
+        closeResultBtn.addEventListener('click', () => {
+            modal.classList.add('hidden');
+            resetAll();
+        });
+        
+        viewDetailedReportBtn.addEventListener('click', () => {
+            // Detaylı rapor sayfasına yönlendirme
+            // Şimdilik sadece bilgilendirme
+            alert('Detaylı rapor sayfasına yönlendirileceksiniz. Backend entegrasyonu tamamlandığında aktif olacaktır.');
+        });
+        
+        // Form gönderimi
+        predictionForm.addEventListener('submit', function(event) {
+            // Form gönderimini engelle
+            event.preventDefault();
+            
+            // Seçili ay değerini al
+            const selectedMonths = selectedMonthsInput.value;
+            const modelType = modelTypeInput.value;
+            
+            // Gerçek model mi simülasyon mu?
+            const useRealModel = document.getElementById('useRealModel').value === 'true';
+            
+            // Modal'ı göster
+            modal.classList.remove('hidden');
+            modal.classList.add('modal-show');
+            
+            // Modal içindeki seçilen ay bilgisini güncelle
+            modalSelectedMonths.textContent = selectedMonths + ' Ay';
+            
+            // Terminal çıktısına modeli ve ay bilgisini ekle
+            document.getElementById('terminalModel').textContent = modelType;
+            document.getElementById('terminalMonths').textContent = selectedMonths;
+            
+            // İşlem başlangıç zamanı
+            const now = new Date();
+            processStartTime.textContent = now.toLocaleTimeString();
+            
+            // Formun gönderim durumunu sıfırla ve arayüzü hazırla
+            resetAll();
+            
+            if (useRealModel) {
+                // Gerçek model kullanılıyor - AJAX isteği gönder
+                logToTerminal('Gerçek model ile tahmin başlatılıyor...', 'green', 'info');
+                logToTerminal(`Seçilen ay: ${selectedMonths}`, 'blue', 'info');
+                logToTerminal(`Seçilen model tipi: ${modelType}`, 'blue', 'info');
+                logToTerminal(`Hisse: ${document.querySelector('[name="stock_id"]').value}`, 'blue', 'info');
+                
+                // AJAX için form verilerini al
+                const formData = new FormData(this);
+                
+                // Gerçek işlem adımlarını başlat
+                startRealPredictionProcess(formData);
+            } else {
+                // Simülasyon modunu kullan
+                logToTerminal('Simülasyon modu ile tahmin gösteriliyor...', 'yellow', 'warning');
+                // İşlem adımlarını oluştur
+                startProcessSimulation();
+            }
+        });
+        
+        // Terminal görünürlüğünü değiştir
+        toggleTerminalBtn.addEventListener('click', () => {
+            const isHidden = terminalOutput.style.display === 'none';
+            terminalOutput.style.display = isHidden ? 'block' : 'none';
+            toggleTerminalBtn.textContent = isHidden ? 'Gizle' : 'Göster';
+        });
+        
+        // Terminal çıktısını temizle
+        clearTerminalBtn.addEventListener('click', () => {
+            terminalOutput.innerHTML = '<div class="text-yellow-400">$ Terminal temizlendi</div>';
+            logToTerminal('Yeni log çıktıları burada görünecek', 'gray');
+        });
+        
+        // Terminal'e log yazdırma fonksiyonu
+        function logToTerminal(message, color = 'white', type = 'info') {
+            const date = new Date();
+            const timestamp = `${date.getHours().toString().padStart(2, '0')}:${date.getMinutes().toString().padStart(2, '0')}:${date.getSeconds().toString().padStart(2, '0')}`;
+            
+            let logPrefix = '';
+            let textColor = '';
+            
+            switch(type) {
+                case 'error':
+                    logPrefix = '[ERROR] ';
+                    textColor = 'text-red-500';
+                    break;
+                case 'warning':
+                    logPrefix = '[UYARI] ';
+                    textColor = 'text-yellow-500';
+                    break;
+                case 'success':
+                    logPrefix = '[BAŞARILI] ';
+                    textColor = 'text-green-500';
+                    break;
+                case 'info':
+                default:
+                    logPrefix = '[BİLGİ] ';
+                    textColor = color === 'white' ? 'text-gray-200' : `text-${color}-400`;
+            }
+            
+            const logElement = document.createElement('div');
+            logElement.className = textColor;
+            logElement.innerHTML = `<span class="text-gray-500">${timestamp}</span> ${logPrefix}${message}`;
+            
+            terminalOutput.appendChild(logElement);
+            
+            // Otomatik olarak en alta kaydır
+            terminalOutput.scrollTop = terminalOutput.scrollHeight;
+        }
+        
+        // Tüm form elemanlarını ve modali sıfırla
+        function resetAll() {
+            resetProcessUI();
+            
+            // Sonuç bölümünü gizle, işlem bilgilerini göster
+            if (processInfo) processInfo.classList.remove('hidden');
+            if (resultSection) resultSection.classList.add('hidden');
+            
+            // Modal başlığını sıfırla
+            if (modalTitle) modalTitle.textContent = 'Tahmin İşlemi';
+            
+            // Terminal çıktısını sıfırla
+            if (terminalOutput) {
+                terminalOutput.innerHTML = `
+                    <div class="text-yellow-400">$ Tahmin işlemi başlatılıyor...</div>
+                    <div class="text-blue-400">Seçilen model: ${modelTypeInput.value}</div>
+                    <div class="text-blue-400">Zaman ufku: ${selectedMonthsInput.value} ay</div>
+                `;
+            }
+        }
+        
+        // İşlem UI'ını sıfırlama
+        function resetProcessUI() {
+            // İşlem adımları container'ını temizle
+            processStepsContainer.innerHTML = '';
+            
+            // Genel ilerlemeyi sıfırla
+            overallProgress.style.width = '0%';
+            overallProgressText.textContent = '0%';
+            
+            // Sonuç butonunu gizle
+            completeProcessBtn.classList.add('hidden');
+            
+            // Başarı mesajını kaldır
+            const successMessage = processStepsContainer.parentNode.querySelector('div.bg-green-100');
+            if (successMessage) {
+                successMessage.remove();
+            }
+        }
+        
+        // Örnek sonuç verileri üretme
+        function generateExampleResults() {
+            // Mevcut fiyat
+            const currentPrice = parseFloat(resultCurrentPrice.textContent.replace('₺', '').trim());
+            
+            // Seçilen ay sayısını al
+            const selectedMonths = parseInt(selectedMonthsInput.value);
+            
+            // Tahmini fiyat (gerçek modelde API'den gelecek)
+            // Burada basit bir simülasyon yapıyoruz
+            let percentChange = 0;
+            
+            // Ay sayısına göre farklı değişimler (demo için)
+            if (selectedMonths <= 6) {
+                // Kısa vadede küçük değişim
+                percentChange = (Math.random() * 20) - 5; // -5% ile +15% arası
+            } else if (selectedMonths <= 24) {
+                // Orta vadede daha büyük değişim
+                percentChange = (Math.random() * 40) - 10; // -10% ile +30% arası
+            } else {
+                // Uzun vadede daha büyük değişim
+                percentChange = (Math.random() * 70) - 15; // -15% ile +55% arası
+            }
+            
+            // Tahmini fiyatı hesapla
+            const predictedPrice = currentPrice * (1 + percentChange / 100);
+            
+            // Güven aralığı (gerçek modelde hesaplanacak)
+            const confidenceInterval = Math.abs(percentChange) * 0.3; // Basit bir hesaplama
+            
+            // Sonuçları UI'a yerleştir
+            resultPredictedPrice.textContent = predictedPrice.toFixed(2) + ' ₺';
+            
+            // Değişim oranını formatla
+            const percentChangeText = percentChange > 0 ? '+' + percentChange.toFixed(2) + '%' : percentChange.toFixed(2) + '%';
+            const percentChangeColor = percentChange > 0 ? 'bg-green-500' : 'bg-red-500';
+            resultPercentChange.innerHTML = `<span class="inline-block px-2 py-1 rounded text-white ${percentChangeColor}">${percentChangeText}</span>`;
+            
+            // Güven aralığı
+            resultConfidenceInterval.textContent = '±' + confidenceInterval.toFixed(2) + '%';
+        }
+        
+        // İşlem simülasyonu başlat
+        function startProcessSimulation() {
+            // İşlem adımlarını oluştur
+            predictionSteps.forEach((step, index) => {
+                const stepEl = createStepElement(step.name, index, predictionSteps.length);
+                processStepsContainer.appendChild(stepEl);
+            });
+            
+            // İlk adımı başlat
+            processStep(0);
+        }
+        
+        // Adım elementi oluştur - Yatay gösterim için
+        function createStepElement(stepName, index, total) {
+            const shortName = predictionSteps[index].shortName;
+            const isFirst = index === 0;
+            const isLast = index === total - 1;
+            
+            // Önceki konektör (ilk adım hariç)
+            if (!isFirst) {
+                const connector = document.createElement('div');
+                connector.className = 'step-connector connector-waiting';
+                connector.id = `connector-${index-1}-${index}`;
+                processStepsContainer.appendChild(connector);
+            }
+            
+            // Adım indikatörü
+            const stepIndicator = document.createElement('div');
+            stepIndicator.className = 'step-indicator step-waiting';
+            stepIndicator.id = `step-${index}`;
+            
+            // İçerik (numara veya ikon)
+            stepIndicator.innerHTML = `
+                ${index + 1}
+                <div class="step-label font-medium text-gray-500">${shortName}</div>
+            `;
+            
+            processStepsContainer.appendChild(stepIndicator);
+            
+            // Sonraki konektör (son adım hariç)
+            if (!isLast) {
+                const connector = document.createElement('div');
+                connector.className = 'step-connector connector-waiting';
+                connector.id = `connector-${index}-${index+1}`;
+                processStepsContainer.appendChild(connector);
+            }
+            
+            return stepIndicator;
+        }
+        
+        // Adım işleme - Yatay gösterim için güncellenmiş versiyon
+        function processStep(stepIndex) {
+            if (stepIndex >= predictionSteps.length) {
+                // Tüm adımlar tamamlandı
+                completeProcessBtn.classList.remove('hidden');
+                completeProcessBtn.classList.add('process-complete');
+                
+                // İşlem tamamlandı mesajı
+                const successMessage = document.createElement('div');
+                successMessage.className = 'mt-4 p-3 bg-green-100 text-green-800 rounded-lg flex items-center';
+                successMessage.innerHTML = `
+                    <svg class="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path>
+                    </svg>
+                    <span>Tahmin işlemi başarıyla tamamlandı!</span>
+                `;
+                activeStepDetail.parentNode.appendChild(successMessage);
+                
+                // Son log
+                logToTerminal('Tahmin işlemi başarıyla tamamlandı', 'green', 'success');
+                
+                // Aktif adım bölgesini gizle
+                activeStepDetail.classList.add('hidden');
+                
+                return;
+            }
+            
+            const step = predictionSteps[stepIndex];
+            
+            // Önceki adımları tamamlanmış olarak işaretle
+            for (let i = 0; i < stepIndex; i++) {
+                const prevStepElement = document.getElementById(`step-${i}`);
+                if (prevStepElement) {
+                    prevStepElement.classList.remove('step-active', 'step-waiting');
+                    prevStepElement.classList.add('step-completed');
+                    
+                    // Önceki adımdan bu adıma giden konektörü de tamamla
+                    if (i < stepIndex) {
+                        const connector = document.getElementById(`connector-${i}-${i+1}`);
+                        if (connector) {
+                            connector.classList.remove('connector-waiting', 'connector-active');
+                            connector.classList.add('connector-completed');
+                        }
+                    }
+                }
+            }
+            
+            // Mevcut adımı aktif olarak işaretle
+            const stepElement = document.getElementById(`step-${stepIndex}`);
+            if (stepElement) {
+                stepElement.classList.remove('step-waiting');
+                stepElement.classList.add('step-active');
+                
+                // Önceki adımdan bu adıma giden konektörü aktif yap
+                if (stepIndex > 0) {
+                    const connector = document.getElementById(`connector-${stepIndex-1}-${stepIndex}`);
+                    if (connector) {
+                        connector.classList.remove('connector-waiting');
+                        connector.classList.add('connector-active');
+                    }
+                }
+                
+                // Aktif adım bilgisini güncelle
+                activeStepName.textContent = step.name;
+                activeStepDetail.classList.add('active-step-detail');
+            }
+            
+            // Adım için log'ları göster
+            const stepKey = step.key;
+            const logs = modelLogs[stepKey] || [];
+            
+            // Başlangıç logu
+            logToTerminal(`${step.name} işlemi başlatılıyor...`, 'yellow');
+            
+            // İlerleme çubuğu animasyonu
+            let progress = 0;
+            const interval = 100; // 100ms aralıklarla güncelle
+            const totalIntervals = step.duration / interval;
+            const increment = 100 / totalIntervals;
+            
+            // Log mesajlarını dağıt
+            const logInterval = step.duration / (logs.length + 1);
+            let logIndex = 0;
+            
+            const progressInterval = setInterval(() => {
+                progress += increment;
+                
+                // Log zamanı geldi mi?
+                const expectedLogProgress = ((logIndex + 1) * logInterval) / step.duration * 100;
+                if (progress >= expectedLogProgress && logIndex < logs.length) {
+                    logToTerminal(logs[logIndex], 'blue');
+                    logIndex++;
+                }
+                
+                if (progress >= 100) {
+                    progress = 100;
+                    clearInterval(progressInterval);
+                    
+                    // Adım tamamlandığında
+                    logToTerminal(`${step.name} işlemi tamamlandı`, 'green', 'success');
+                    
+                    // Bir sonraki adıma geç
+                    setTimeout(() => {
+                        processStep(stepIndex + 1);
+                    }, 500);
+                }
+                
+                // Aktif adımın ilerleme çubuğunu güncelle
+                activeStepProgress.style.width = `${progress}%`;
+                
+                // Genel ilerlemeyi güncelle
+                updateOverallProgress();
+            }, interval);
+        }
+        
+        // Genel ilerlemeyi güncelle
+        function updateOverallProgress() {
+            const progressBars = processStepsContainer.querySelectorAll('.progress');
+            let totalProgress = 0;
+            
+            progressBars.forEach(bar => {
+                const width = parseFloat(bar.style.width) || 0;
+                totalProgress += width;
+            });
+            
+            const overallPercentage = totalProgress / (predictionSteps.length * 100) * 100;
+            overallProgress.style.width = `${overallPercentage}%`;
+            overallProgressText.textContent = `${Math.round(overallPercentage)}%`;
+        }
+        
+        // Gerçek tahmin işlemi - Backend API'ye istek gönderir
+        function startRealPredictionProcess(formData) {
+            // İşlem adımlarını oluştur (görsel amaçlı)
+            predictionSteps.forEach((step, index) => {
+                const stepEl = createStepElement(step.name, index, predictionSteps.length);
+                processStepsContainer.appendChild(stepEl);
+            });
+            
+            // İlk adımı aktif et ve göster
+            activateStep(0);
+            
+            // POST isteği gönder
+            fetch('/stocks/{{ stock.id }}/run-prediction/', {
+                method: 'POST',
+                body: formData,
+                headers: {
+                    'X-Requested-With': 'XMLHttpRequest',
+                    'X-CSRFToken': document.querySelector('[name=csrfmiddlewaretoken]').value
+                }
+            })
+            .then(response => {
+                if (!response.ok) {
+                    throw new Error(`HTTP error! Status: ${response.status}`);
+                }
+                return response.json();
+            })
+            .then(data => {
+                console.log('Model tahmin sonuçları:', data);
+                
+                // Başarılı yanıt
+                logToTerminal('Backend\'den başarılı yanıt alındı', 'green', 'success');
+                
+                // Log sonucunu göster
+                logToTerminal(`Mesaj: ${data.message}`, 'blue', 'info');
+                
+                // Durumu kontrol et
+                if (data.status === 'success') {
+                    // Tüm adımları tamamla ve sonuçları göster
+                    activateStep(4);
+                    completeAllSteps(data);
+                    displayRealResults(data);
+                } else {
+                    // Hata durumu - burada işlemi hata durumuna getir
+                    logToTerminal(`Tahmin işlemi hatası: ${data.message}`, 'red', 'error');
+                    showErrorInModal(data.message);
+                    
+                    // Tüm adımları hata durumuna getir ve işlemi sonlandır
+                    markAllStepsAsError();
+                    
+                    // Status kontrolünü durdur
+                    if (statusCheckInterval) {
+                        clearTimeout(statusCheckInterval);
+                    }
+                }
+            })
+            .catch(error => {
+                // Hata durumu
+                console.error('Tahmin işlemi hatası:', error);
+                logToTerminal(`Tahmin işlemi hatası: ${error.message}`, 'red', 'error');
+                showErrorInModal(`Sunucu ile iletişim sırasında hata oluştu: ${error.message}`);
+                
+                // Tüm adımları hata durumuna getir
+                markAllStepsAsError();
+            });
+            
+            // Ara adımları sorgulaması 
+            let stepCounter = 0;
+            let statusCheckInterval;
+            
+            const checkStatus = () => {
+                fetch(`/stocks/{{ stock.id }}/prediction-status/`, {
+                    method: 'GET',
+                    headers: {
+                        'X-Requested-With': 'XMLHttpRequest'
+                    }
+                })
+                .then(response => {
+                    if (!response.ok) {
+                        throw new Error(`HTTP error! Status: ${response.status}`);
+                    }
+                    return response.json();
+                })
+                .then(data => {
+                    if (data.status === 'running') {
+                        // Adım durumunu güncelle
+                        if (data.step !== 'waiting' && stepCounter < predictionSteps.length) {
+                            // Adım indeksini belirle
+                            let stepIndex = 0;
+                            
+                            switch(data.step) {
+                                case 'data_preparation':
+                                    stepIndex = 0;
+                                    break;
+                                case 'model_training':
+                                    stepIndex = 1; 
+                                    break;
+                                case 'prediction':
+                                    stepIndex = 3;
+                                    break;
+                                case 'report_generation':
+                                    stepIndex = 4;
+                                    break;
+                                default:
+                                    stepIndex = stepCounter;
+                            }
+                            
+                            // Önceki adımın tamamlandığını göster
+                            if (stepIndex > stepCounter) {
+                                completeStep(stepCounter);
+                                activateStep(stepIndex);
+                                stepCounter = stepIndex;
+                            }
+                            
+                            // Adım mesajı göster
+                            if (data.message) {
+                                logToTerminal(data.message, 'blue', 'info');
+                            }
+                        }
+                        
+                        // Tekrar kontrol et
+                        setTimeout(checkStatus, 2000);
+                    } else if (data.status === 'completed') {
+                        // Tamamlandı
+                        completeStep(stepCounter);
+                        if (stepCounter < predictionSteps.length - 1) {
+                            activateStep(predictionSteps.length - 1);
+                            completeStep(predictionSteps.length - 1);
+                        }
+                        
+                        // Tamamlandı mesajı göster
+                        logToTerminal('Tahmin işlemi tamamlandı!', 'green', 'success');
+                        
+                        // Status kontrolünü durdur
+                        clearInterval(statusCheckInterval);
+                    } else if (data.status === 'error') {
+                        // Hata
+                        logToTerminal(`Hata: ${data.message}`, 'red', 'error');
+                        showErrorInModal(data.message);
+                        
+                        // Geçerli adımı hata durumuna getir
+                        markStepAsError(stepCounter);
+                        
+                        // Status kontrolünü durdur
+                        clearInterval(statusCheckInterval);
+                    }
+                })
+                .catch(error => {
+                    console.error('Durum kontrolü hatası:', error);
+                    // Status kontrolünü durdur
+                    clearTimeout(statusCheckInterval);
+                });
+            };
+            
+            // İlk durum kontrolünü başlat
+            statusCheckInterval = setTimeout(checkStatus, 2000);
+        }
+        
+        // Tüm adımları hata durumuna getir
+        function markAllStepsAsError() {
+            for (let i = 0; i < predictionSteps.length; i++) {
+                if (i <= currStepIndex) {
+                    markStepAsError(i);
+                }
+            }
+            
+            // Genel ilerleme çubuğunu kırmızı yap
+            overallProgress.classList.remove('bg-blue-600');
+            overallProgress.classList.add('bg-red-600');
+        }
+        
+        // Adımı hata durumuna getir - Yatay gösterim için
+        function markStepAsError(stepIndex) {
+            // Adımı hata durumuna getir
+            const stepElement = document.getElementById(`step-${stepIndex}`);
+            if (stepElement) {
+                stepElement.classList.remove('step-active', 'step-waiting', 'step-completed');
+                stepElement.classList.add('step-error');
+                
+                // Önceki adımdan bu adıma giden konektörü de hata durumuna getir
+                if (stepIndex > 0) {
+                    const connector = document.getElementById(`connector-${stepIndex-1}-${stepIndex}`);
+                    if (connector) {
+                        connector.classList.remove('connector-waiting', 'connector-active', 'connector-completed');
+                        connector.classList.add('connector-error');
+                    }
+                }
+            }
+            
+            // Aktif adım bilgisini güncelle
+            activeStepName.textContent = "Hata: " + predictionSteps[stepIndex].name;
+            activeStepDetail.classList.add('active-step-detail');
+            activeStepDetail.classList.add('bg-red-50');
+            activeStepDetail.classList.add('border-red-100');
+            activeStepName.classList.add('text-red-800');
+            activeStepProgress.style.width = '100%';
+            activeStepProgress.classList.remove('from-blue-400', 'to-blue-500');
+            activeStepProgress.classList.add('bg-red-500');
+        }
+        
+        // Adımı aktifleştir
+        function activateStep(stepIndex) {
+            if (stepIndex >= predictionSteps.length) return;
+            
+            const stepElement = document.getElementById(`step-${stepIndex}`);
+            if (!stepElement) return;
+            
+            const indicator = stepElement.querySelector('.flex-shrink-0 div');
+            const innerDot = stepElement.querySelector('.flex-shrink-0 div div');
+            const stepText = stepElement.querySelector('p');
+            
+            // Görsel güncelleme
+            indicator.classList.remove('bg-gray-200');
+            indicator.classList.add('bg-blue-200');
+            innerDot.classList.remove('bg-gray-400');
+            innerDot.classList.add('bg-blue-600');
+            stepText.classList.remove('text-gray-500');
+            stepText.classList.add('text-blue-800');
+            
+            // İlerleme çubuğunu başlat
+            const progressBar = stepElement.querySelector('.progress');
+            progressBar.style.width = '10%'; // Başlangıç değeri
+            
+            // Adım için log'ları göster
+            const step = predictionSteps[stepIndex];
+            const stepKey = step.key;
+            
+            // Log mesajı
+            logToTerminal(`${step.name} işlemi başlatılıyor...`, 'yellow');
+            
+            // İlk logu göster
+            const logs = modelLogs[stepKey] || [];
+            if (logs.length > 0) {
+                logToTerminal(logs[0], 'blue');
+            }
+            
+            // Adım ilerleme animasyonu
+            let progress = 10;
+            const interval = setInterval(() => {
+                if (progress < 95) {
+                    progress += Math.random() * 5;
+                    progressBar.style.width = `${progress}%`;
+                    
+                    // Genel ilerlemeyi güncelle
+                    updateOverallProgress();
+                } else {
+                    clearInterval(interval);
+                }
+            }, 1500);
+        }
+        
+        // Gerçek sonuçları göster
+        function displayRealResults(data) {
+            // Sonucu Göster butonuna tıklama olayı
+            completeProcessBtn.onclick = function() {
+                // İşlem bilgileri kısmını gizle, sonuç bölümünü göster
+                processInfo.classList.add('hidden');
+                resultSection.classList.remove('hidden');
+                
+                // Modal başlığını değiştir
+                modalTitle.textContent = 'Tahmin Sonuçları';
+                
+                // Sonuç değerlerini gerçek verilerle doldur
+                resultCurrentPrice.textContent = data.current_price ? data.current_price.toFixed(2) + ' ₺' : '0.00 ₺';
+                resultPredictedPrice.textContent = data.predicted_price ? data.predicted_price.toFixed(2) + ' ₺' : '0.00 ₺';
+                
+                // Değişim oranını formatlı
+                const percentChange = data.price_change || 0;
+                const percentChangeText = percentChange > 0 ? '+' + percentChange.toFixed(2) + '%' : percentChange.toFixed(2) + '%';
+                const percentChangeColor = percentChange > 0 ? 'bg-green-500' : 'bg-red-500';
+                resultPercentChange.innerHTML = `<span class="inline-block px-2 py-1 rounded text-white ${percentChangeColor}">${percentChangeText}</span>`;
+                
+                // Güven aralığı
+                const confidenceInterval = 5; // Sabit değer (gerçekte hesaplanmalı)
+                resultConfidenceInterval.textContent = '±' + confidenceInterval.toFixed(2) + '%';
+                
+                // Detaylı raporu görüntüle butonuna tıklama olayı
+                viewDetailedReportBtn.onclick = function() {
+                    window.location.href = data.redirect_url || '/';
+                };
+            };
+        }
+        
+        // Hata durumunda modal göster
+        function showErrorInModal(message) {
+            // Önceki hata mesajlarını temizle
+            const existingErrors = processStepsContainer.parentNode.querySelectorAll('div.bg-red-100');
+            existingErrors.forEach(error => error.remove());
+            
+            // Hata mesajı oluştur
+            const errorDiv = document.createElement('div');
+            errorDiv.className = 'mt-4 p-4 bg-red-100 text-red-800 rounded-lg';
+            
+            // Hata türünü analiz edelim
+            let errorType = 'Bilinmeyen Hata';
+            let errorInstruction = 'Sistem yöneticinizle iletişime geçin.';
+            
+            if (message.includes('No module named')) {
+                errorType = 'Eksik Kütüphane Hatası';
+                const moduleName = message.split("'")[1] || 'bilinmeyen modül';
+                errorInstruction = `"${moduleName}" kütüphanesi yüklü değil. Lütfen sistem yöneticinize başvurun veya kütüphaneyi yükleyin.`;
+            } else if (message.includes('Connection refused') || message.includes('Status: 404')) {
+                errorType = 'Bağlantı Hatası';
+                errorInstruction = 'Sunucu ile iletişim kurulamadı. Lütfen internet bağlantınızı kontrol edin veya daha sonra tekrar deneyin.';
+            } else if (message.includes('data') || message.includes('veri')) {
+                errorType = 'Veri Hatası';
+                errorInstruction = 'Hisse senedi için yeterli veri bulunamadı veya veriler işlenemedi.';
+            }
+            
+            const errorContent = `
+                <div class="flex items-start">
+                    <div class="flex-shrink-0">
+                        <svg class="w-5 h-5 text-red-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+                        </svg>
+                    </div>
+                    <div class="ml-3">
+                        <h3 class="text-sm font-medium text-red-800">${errorType}</h3>
+                        <div class="mt-2 text-sm text-red-700">
+                            <p class="mb-1">${message || 'Tahmin işlemi sırasında beklenmeyen bir hata oluştu.'}</p>
+                            <p class="italic">${errorInstruction}</p>
+                        </div>
+                        <div class="mt-3 flex space-x-3">
+                            <button type="button" onclick="retryPrediction()" class="text-sm font-medium text-white bg-red-600 hover:bg-red-700 px-3 py-1.5 rounded-md transition-colors">
+                                Tekrar Dene
+                            </button>
+                            <button type="button" onclick="toggleTerminal()" class="text-sm font-medium text-red-800 hover:text-red-900 bg-red-50 hover:bg-red-100 px-3 py-1.5 rounded-md transition-colors">
+                                Terminal Detaylarını Göster
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            `;
+            
+            errorDiv.innerHTML = errorContent;
+            processStepsContainer.parentNode.appendChild(errorDiv);
+            
+            // Tüm adımları hata durumuna getir
+            markAllStepsAsError();
+            
+            // İptal butonunu göster, tamamla butonunu gizle
+            completeProcessBtn.classList.add('hidden');
+            cancelProcessBtn.textContent = 'Kapat';
+        }
+        
+        // Tahmin işlemini tekrar dene
+        function retryPrediction() {
+            // Modal'ı kapat
+            modal.classList.add('hidden');
+            
+            // Kısa bir süre sonra tahmin formunu tekrar gönder
+            setTimeout(() => {
+                const formData = new FormData(predictionForm);
+                
+                // Modalı göster ve işlemi başlat
+                modal.classList.remove('hidden');
+                modal.classList.add('modal-show');
+                
+                // İşlem başlangıç zamanını güncelle
+                const now = new Date();
+                processStartTime.textContent = now.toLocaleTimeString();
+                
+                // Arayüzü sıfırla
+                resetAll();
+                
+                // Gerçek tahmin işlemini başlat
+                startRealPredictionProcess(formData);
+            }, 500);
+        }
+        
+        // Adımı tamamla
+        function completeStep(stepIndex) {
+            if (stepIndex >= predictionSteps.length) return;
+            
+            const stepElement = document.getElementById(`step-${stepIndex}`);
+            if (!stepElement) return;
+            
+            const indicator = stepElement.querySelector('.flex-shrink-0 div');
+            const innerDot = stepElement.querySelector('.flex-shrink-0 div div');
+            const progressBar = stepElement.querySelector('.progress');
+            
+            // Adımı tamamla
+            indicator.classList.remove('bg-blue-200');
+            indicator.classList.add('bg-green-200');
+            innerDot.classList.remove('bg-blue-600');
+            innerDot.classList.add('bg-green-600');
+            progressBar.style.width = '100%';
+            
+            // Genel ilerlemeyi güncelle
+            updateOverallProgress();
+            
+            // Adım için son logu göster
+            const step = predictionSteps[stepIndex];
+            
+            // Log mesajı
+            logToTerminal(`${step.name} işlemi tamamlandı`, 'green', 'success');
+        }
+        
+        // Tüm adımları tamamla (Backend yanıtından sonra)
+        function completeAllSteps(data) {
+            // Her adımı tamamla
+            for (let i = 0; i < predictionSteps.length; i++) {
+                const stepElement = document.getElementById(`step-${i}`);
+                if (stepElement) {
+                    stepElement.classList.remove('step-active', 'step-waiting');
+                    stepElement.classList.add('step-completed');
+                }
+                
+                // Konektörleri tamamla
+                if (i < predictionSteps.length - 1) {
+                    const connector = document.getElementById(`connector-${i}-${i+1}`);
+                    if (connector) {
+                        connector.classList.remove('connector-waiting', 'connector-active');
+                        connector.classList.add('connector-completed');
+                    }
+                }
+            }
+            
+            // Aktif adım bölgesini gizle
+            activeStepDetail.classList.add('hidden');
+            
+            // Genel ilerleme çubuğunu güncelle
+            overallProgress.style.width = '100%';
+            overallProgressText.textContent = '100%';
+            
+            // İşlem tamamlandı mesajı
+            const successMessage = document.createElement('div');
+            successMessage.className = 'mt-4 p-3 bg-green-100 text-green-800 rounded-lg flex items-center';
+            successMessage.innerHTML = `
+                <svg class="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path>
+                </svg>
+                <span>Tahmin işlemi başarıyla tamamlandı!</span>
+            `;
+            activeStepDetail.parentNode.appendChild(successMessage);
+            
+            // Son log
+            logToTerminal('Tahmin işlemi başarıyla tamamlandı', 'green', 'success');
+            
+            if (data.price_change !== undefined) {
+                logToTerminal(`Tahmini fiyat: ${data.predicted_price.toFixed(2)} ₺ (${data.price_change.toFixed(2)}%)`, 'blue', 'info');
+            }
+            
+            // Sonuç butonunu göster
+            completeProcessBtn.classList.remove('hidden');
+            completeProcessBtn.classList.add('process-complete');
+        }
+        
+        // Sayfa yüklendiğinde varsayılan olarak 12 ayı ve hybrid modeli seç
+        const defaultMonthButton = document.querySelector('.month-btn[data-months="12"]');
+        if (defaultMonthButton) {
+            defaultMonthButton.classList.add('active');
+            defaultMonthButton.classList.add('bg-blue-100');
+            defaultMonthButton.classList.remove('bg-white');
+        }
+        
+        const defaultModelButton = document.querySelector('.model-btn[data-model="hybrid"]');
+        if (defaultModelButton) {
+            defaultModelButton.classList.add('active');
+            defaultModelButton.classList.add('bg-indigo-100');
+            defaultModelButton.classList.remove('bg-white');
+        }
+        
+        // Geçerli adım indeksi
+        let currStepIndex = 0;
+        
+        // Terminal görünürlüğünü değiştir fonksiyonu (global olarak erişilebilir)
+        function toggleTerminal() {
+            const terminalOutput = document.getElementById('terminalOutput');
+            const isHidden = terminalOutput.style.display === 'none';
+            terminalOutput.style.display = isHidden ? 'block' : 'none';
+        }
+    });
+</script>
 {% endblock %} 

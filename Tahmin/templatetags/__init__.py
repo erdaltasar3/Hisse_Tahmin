@@ -1,0 +1,1 @@
+# Bu dosya Tahmin/templatetags paketini tanımlar 

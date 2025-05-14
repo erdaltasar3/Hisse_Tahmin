@@ -1,0 +1,284 @@
+{% extends 'Tahmin/admin_base.html' %}
+
+{% block content %}
+<div class="bg-white rounded-lg shadow-lg p-6">
+    <h1 class="text-2xl font-bold mb-6 text-gray-800">Tahmin Modeli İçin Gerekli Veri Kaynakları</h1>
+    
+    <p class="mb-6 text-gray-600">
+        Aşağıda, hisse senedi tahmin modellerini iyileştirmek için gerekli olan veri kaynakları listelenmiştir. 
+        Her veri türü için ayrı olarak "Veri Ekle" butonuna tıklayarak ilgili verileri sisteme yükleyebilirsiniz.
+    </p>
+
+    <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 mb-8">
+        <!-- 1. Makroekonomik Veriler -->
+        <div class="bg-white rounded-lg shadow-md overflow-hidden border border-gray-200 hover:shadow-lg transition-shadow duration-300">
+            <div class="bg-indigo-700 p-4">
+                <h2 class="text-xl font-semibold text-white flex items-center">
+                    <svg class="w-6 h-6 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"></path>
+                    </svg>
+                    Makroekonomik Veriler
+                </h2>
+            </div>
+            <div class="p-4">
+                <ul class="list-disc ml-5 space-y-2 text-gray-700 mb-4">
+                    <li>Enflasyon oranları (TÜFE, ÜFE)</li>
+                    <li>Faiz oranları (Merkez Bankası politika faizi, bono ve tahvil faizleri)</li>
+                    <li>Döviz kurları (özellikle USD/TRY, EUR/TRY)</li>
+                    <li>GSYH büyüme verileri</li>
+                    <li>İşsizlik oranları</li>
+                </ul>
+                <div class="bg-blue-50 p-3 rounded-md mb-4">
+                    <p class="text-blue-800 text-sm">
+                        <span class="font-bold">Veri Kaynakları:</span> TCMB, TÜİK, Investing.com, Trading Economics
+                    </p>
+                </div>
+                <div class="mt-4 flex flex-wrap gap-2">
+                    <a href="{% url 'import_macroeconomic_data' %}" class="flex-1 min-w-[170px] text-center bg-indigo-600 hover:bg-indigo-700 text-white font-bold py-2 px-3 rounded-lg transition duration-200">
+                        <span class="flex items-center justify-center">
+                            <svg class="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12"></path>
+                            </svg>
+                            Veri Yükle
+                        </span>
+                    </a>
+                    <a href="{% url 'macroeconomic_data' %}" class="flex-1 min-w-[170px] text-center bg-blue-600 hover:bg-blue-700 text-white font-bold py-2 px-3 rounded-lg transition duration-200">
+                        <span class="flex items-center justify-center">
+                            <svg class="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"></path>
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"></path>
+                            </svg>
+                            Tüm Veriler
+                        </span>
+                    </a>
+                    <a href="{% url 'inflation_data' %}" class="flex-1 min-w-[170px] text-center bg-yellow-600 hover:bg-yellow-700 text-white font-bold py-2 px-3 rounded-lg transition duration-200">
+                        <span class="flex items-center justify-center">
+                            <svg class="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"></path>
+                            </svg>
+                            Enflasyon
+                        </span>
+                    </a>
+                </div>
+            </div>
+        </div>
+        
+        <!-- 2. Sektörel Bilgiler -->
+        <div class="bg-white rounded-lg shadow-md overflow-hidden border border-gray-200 hover:shadow-lg transition-shadow duration-300">
+            <div class="bg-indigo-700 p-4">
+                <h2 class="text-xl font-semibold text-white flex items-center">
+                    <svg class="w-6 h-6 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4"></path>
+                    </svg>
+                    Sektörel Bilgiler
+                </h2>
+            </div>
+            <div class="p-4">
+                <ul class="list-disc ml-5 space-y-2 text-gray-700 mb-4">
+                    <li>Hisselerin bulunduğu sektör endeksleri</li>
+                    <li>Sektöre özgü regülasyon değişiklikleri</li>
+                    <li>Sektörel büyüme verileri</li>
+                    <li>Sektörün mevsimsellik etkileri</li>
+                </ul>
+                <div class="bg-blue-50 p-3 rounded-md mb-4">
+                    <p class="text-blue-800 text-sm">
+                        <span class="font-bold">Veri Kaynakları:</span> BIST, SPK, Sektör Raporları, Bloomberg Terminal
+                    </p>
+                </div>
+                <div class="mt-4">
+                    <a href="#" class="block w-full text-center bg-indigo-600 hover:bg-indigo-700 text-white font-bold py-3 px-4 rounded-lg transition duration-200">
+                        <span class="flex items-center justify-center">
+                            <svg class="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12"></path>
+                            </svg>
+                            Sektörel Verileri Yükle
+                        </span>
+                    </a>
+                </div>
+            </div>
+        </div>
+        
+        <!-- 3. Şirket Finansalları -->
+        <div class="bg-white rounded-lg shadow-md overflow-hidden border border-gray-200 hover:shadow-lg transition-shadow duration-300">
+            <div class="bg-indigo-700 p-4">
+                <h2 class="text-xl font-semibold text-white flex items-center">
+                    <svg class="w-6 h-6 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 7h6m0 10v-3m-3 3h.01M9 17h.01M9 14h.01M12 14h.01M15 11h.01M12 11h.01M9 11h.01M7 21h10a2 2 0 002-2V5a2 2 0 00-2-2H7a2 2 0 00-2 2v14a2 2 0 002 2z"></path>
+                    </svg>
+                    Şirket Finansalları
+                </h2>
+            </div>
+            <div class="p-4">
+                <ul class="list-disc ml-5 space-y-2 text-gray-700 mb-4">
+                    <li>Üç aylık ve yıllık finansal raporlar</li>
+                    <li>Satış gelirleri, EBITDA, net kar verileri</li>
+                    <li>Bilanço verileri (özellikle borç/özsermaye oranı)</li>
+                    <li>Temettü verileri ve politikaları</li>
+                    <li>Piyasa çarpanları (F/K, PD/DD, FD/FAVÖK)</li>
+                </ul>
+                <div class="bg-blue-50 p-3 rounded-md mb-4">
+                    <p class="text-blue-800 text-sm">
+                        <span class="font-bold">Veri Kaynakları:</span> KAP, Şirket Finansal Raporları, FINNET, İş Yatırım Veritabanı
+                    </p>
+                </div>
+                <div class="mt-4">
+                    <a href="#" class="block w-full text-center bg-indigo-600 hover:bg-indigo-700 text-white font-bold py-3 px-4 rounded-lg transition duration-200">
+                        <span class="flex items-center justify-center">
+                            <svg class="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12"></path>
+                            </svg>
+                            Finansal Verileri Yükle
+                        </span>
+                    </a>
+                </div>
+            </div>
+        </div>
+        
+        <!-- 4. Teknik Göstergeler -->
+        <div class="bg-white rounded-lg shadow-md overflow-hidden border border-gray-200 hover:shadow-lg transition-shadow duration-300">
+            <div class="bg-indigo-700 p-4">
+                <h2 class="text-xl font-semibold text-white flex items-center">
+                    <svg class="w-6 h-6 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 12l3-3 3 3 4-4M8 21l4-4 4 4M3 4h18M4 4h16v12a1 1 0 01-1 1H5a1 1 0 01-1-1V4z"></path>
+                    </svg>
+                    Teknik Göstergeler
+                </h2>
+            </div>
+            <div class="p-4">
+                <ul class="list-disc ml-5 space-y-2 text-gray-700 mb-4">
+                    <li>Mevcut modelinizde zaten birçok teknik gösterge var, ancak bunların farklı zaman dilimlerindeki değerleri</li>
+                    <li>Fiyat momentumu</li>
+                    <li>Volatilite ölçümleri</li>
+                    <li>İşlem hacmi anomalileri</li>
+                </ul>
+                <div class="bg-blue-50 p-3 rounded-md mb-4">
+                    <p class="text-blue-800 text-sm">
+                        <span class="font-bold">Veri Kaynakları:</span> Mevcut fiyat verileri üzerinden hesaplanabilir, TradingView
+                    </p>
+                </div>
+                <div class="mt-4">
+                    <a href="#" class="block w-full text-center bg-indigo-600 hover:bg-indigo-700 text-white font-bold py-3 px-4 rounded-lg transition duration-200">
+                        <span class="flex items-center justify-center">
+                            <svg class="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12"></path>
+                            </svg>
+                            Teknik Verileri Yükle
+                        </span>
+                    </a>
+                </div>
+            </div>
+        </div>
+        
+        <!-- 5. Duygu Analizi -->
+        <div class="bg-white rounded-lg shadow-md overflow-hidden border border-gray-200 hover:shadow-lg transition-shadow duration-300">
+            <div class="bg-indigo-700 p-4">
+                <h2 class="text-xl font-semibold text-white flex items-center">
+                    <svg class="w-6 h-6 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M14.828 14.828a4 4 0 01-5.656 0M9 10h.01M15 10h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+                    </svg>
+                    Duygu Analizi
+                </h2>
+            </div>
+            <div class="p-4">
+                <ul class="list-disc ml-5 space-y-2 text-gray-700 mb-4">
+                    <li>Sosyal medya ve haber kaynaklarından hisselere yönelik duygu verileri</li>
+                    <li>Yatırımcı forumlarındaki tartışma yoğunluğu</li>
+                    <li>Analist tavsiyeleri ve hedef fiyatlar</li>
+                    <li>Google Trends verileri</li>
+                </ul>
+                <div class="bg-blue-50 p-3 rounded-md mb-4">
+                    <p class="text-blue-800 text-sm">
+                        <span class="font-bold">Veri Kaynakları:</span> Twitter API, Haber siteleri, Yatırımcı forumları, Google Trends API
+                    </p>
+                </div>
+                <div class="mt-4">
+                    <a href="#" class="block w-full text-center bg-indigo-600 hover:bg-indigo-700 text-white font-bold py-3 px-4 rounded-lg transition duration-200">
+                        <span class="flex items-center justify-center">
+                            <svg class="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12"></path>
+                            </svg>
+                            Duygu Analizi Verilerini Yükle
+                        </span>
+                    </a>
+                </div>
+            </div>
+        </div>
+        
+        <!-- 6. Piyasa Geneli Veriler -->
+        <div class="bg-white rounded-lg shadow-md overflow-hidden border border-gray-200 hover:shadow-lg transition-shadow duration-300">
+            <div class="bg-indigo-700 p-4">
+                <h2 class="text-xl font-semibold text-white flex items-center">
+                    <svg class="w-6 h-6 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 7h8m0 0v8m0-8l-8 8-4-4-6 6"></path>
+                    </svg>
+                    Piyasa Geneli Veriler
+                </h2>
+            </div>
+            <div class="p-4">
+                <ul class="list-disc ml-5 space-y-2 text-gray-700 mb-4">
+                    <li>BIST 100, BIST 30 gibi ana endekslerin performansı</li>
+                    <li>Piyasa volatilite endeksi</li>
+                    <li>Yabancı yatırımcı alım-satım verileri</li>
+                    <li>Borsa işlem hacmi verileri</li>
+                </ul>
+                <div class="bg-blue-50 p-3 rounded-md mb-4">
+                    <p class="text-blue-800 text-sm">
+                        <span class="font-bold">Veri Kaynakları:</span> Borsa İstanbul, MKK, TCMB, Takasbank
+                    </p>
+                </div>
+                <div class="mt-4">
+                    <a href="#" class="block w-full text-center bg-indigo-600 hover:bg-indigo-700 text-white font-bold py-3 px-4 rounded-lg transition duration-200">
+                        <span class="flex items-center justify-center">
+                            <svg class="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12"></path>
+                            </svg>
+                            Piyasa Geneli Verileri Yükle
+                        </span>
+                    </a>
+                </div>
+            </div>
+        </div>
+        
+        <!-- 7. Zaman Özellikleri -->
+        <div class="bg-white rounded-lg shadow-md overflow-hidden border border-gray-200 hover:shadow-lg transition-shadow duration-300">
+            <div class="bg-indigo-700 p-4">
+                <h2 class="text-xl font-semibold text-white flex items-center">
+                    <svg class="w-6 h-6 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+                    </svg>
+                    Zaman Özellikleri
+                </h2>
+            </div>
+            <div class="p-4">
+                <ul class="list-disc ml-5 space-y-2 text-gray-700 mb-4">
+                    <li>Mevsimsellik etkileri (ay, çeyrek, yıl içi dönem)</li>
+                    <li>Tatil günleri ve özel günlerin etkisi</li>
+                    <li>Ekonomik takvime göre önemli açıklama günleri</li>
+                </ul>
+                <div class="bg-blue-50 p-3 rounded-md mb-4">
+                    <p class="text-blue-800 text-sm">
+                        <span class="font-bold">Veri Kaynakları:</span> Takvimlerin oluşturulması, Resmi tatil günleri, TCMB ve TÜİK açıklama takvimi
+                    </p>
+                </div>
+                <div class="mt-4">
+                    <a href="#" class="block w-full text-center bg-indigo-600 hover:bg-indigo-700 text-white font-bold py-3 px-4 rounded-lg transition duration-200">
+                        <span class="flex items-center justify-center">
+                            <svg class="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12"></path>
+                            </svg>
+                            Zaman Verilerini Yükle
+                        </span>
+                    </a>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- İlerleme Butonu -->
+    <div class="mt-8 flex justify-end">
+        <a href="{% url 'stock_management' %}" class="bg-indigo-600 hover:bg-indigo-700 text-white font-bold py-2 px-4 rounded-lg shadow-md transition duration-200">
+            Hisse Yönetimine Dön
+        </a>
+    </div>
+</div>
+{% endblock %} 

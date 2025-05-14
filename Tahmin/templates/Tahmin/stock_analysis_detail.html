@@ -1,0 +1,573 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block title %}{{ stock.symbol }} - Hisse Senedi Analizi{% endblock %}
+
+{% block extra_css %}
+<link rel="stylesheet" href="{% static 'css/stock_detail.css' %}">
+<style>
+    .prediction-card {
+        border-radius: 10px;
+        box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+        transition: all 0.3s ease;
+        margin-bottom: 20px;
+    }
+    .prediction-card:hover {
+        transform: translateY(-5px);
+        box-shadow: 0 8px 15px rgba(0, 0, 0, 0.1);
+    }
+    .card-header-custom {
+        background: linear-gradient(to right, #3498db, #2c3e50);
+        color: white;
+        border-top-left-radius: 10px;
+        border-top-right-radius: 10px;
+        padding: 15px;
+    }
+    .trend-up {
+        color: #2ecc71;
+        font-weight: bold;
+    }
+    .trend-down {
+        color: #e74c3c;
+        font-weight: bold;
+    }
+    .prediction-value {
+        font-size: 1.8rem;
+        font-weight: bold;
+    }
+    .confidence-bar {
+        height: 6px;
+        border-radius: 3px;
+        margin: 10px 0;
+    }
+    .risk-low {
+        background-color: #2ecc71;
+    }
+    .risk-medium {
+        background-color: #f39c12;
+    }
+    .risk-high {
+        background-color: #e74c3c;
+    }
+    .model-badge {
+        padding: 5px 10px;
+        border-radius: 15px;
+        font-size: 0.8rem;
+        margin-right: 5px;
+    }
+    .model-lstm {
+        background-color: #3498db;
+        color: white;
+    }
+    .model-xgboost {
+        background-color: #2c3e50;
+        color: white;
+    }
+    .model-hybrid {
+        background-color: #8e44ad;
+        color: white;
+    }
+    .time-horizon-selector .btn {
+        margin-right: 5px;
+        margin-bottom: 5px;
+    }
+    .technical-indicator {
+        padding: 10px;
+        border-radius: 5px;
+        margin-bottom: 10px;
+    }
+    .indicator-bullish {
+        background-color: rgba(46, 204, 113, 0.2);
+        border-left: 4px solid #2ecc71;
+    }
+    .indicator-bearish {
+        background-color: rgba(231, 76, 60, 0.2);
+        border-left: 4px solid #e74c3c;
+    }
+    .indicator-neutral {
+        background-color: rgba(52, 152, 219, 0.2);
+        border-left: 4px solid #3498db;
+    }
+    .report-btn {
+        margin-top: 20px;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="container mt-4">
+    <div class="row">
+        <div class="col-md-12">
+            <div class="d-flex justify-content-between align-items-center mb-4">
+                <h1>{{ stock.name }} ({{ stock.symbol }})</h1>
+                <div>
+                    <a href="{% url 'stock_list' %}" class="btn btn-outline-secondary">
+                        <i class="fas fa-arrow-left"></i> Hisse Listesine Dön
+                    </a>
+                    {% if user.is_authenticated %}
+                    <button class="btn btn-outline-primary ml-2" id="watchlistBtn" data-stock="{{ stock.id }}">
+                        {% if is_watched %}
+                        <i class="fas fa-star"></i> İzleme Listesinden Çıkar
+                        {% else %}
+                        <i class="far fa-star"></i> İzleme Listesine Ekle
+                        {% endif %}
+                    </button>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="row">
+        <!-- Ana Bilgiler -->
+        <div class="col-md-4">
+            <div class="card prediction-card">
+                <div class="card-header-custom">
+                    <h5 class="mb-0">Hisse Bilgileri</h5>
+                </div>
+                <div class="card-body">
+                    <div class="d-flex justify-content-between mb-3">
+                        <span>Son Fiyat:</span>
+                        <span class="font-weight-bold">{{ stock.current_price|floatformat:2 }} ₺</span>
+                    </div>
+                    <div class="d-flex justify-content-between mb-3">
+                        <span>Günlük Değişim:</span>
+                        <span class="{% if stock.daily_change > 0 %}trend-up{% elif stock.daily_change < 0 %}trend-down{% endif %}">
+                            {{ stock.daily_change|floatformat:2 }}% 
+                            {% if stock.daily_change > 0 %}
+                            <i class="fas fa-arrow-up"></i>
+                            {% elif stock.daily_change < 0 %}
+                            <i class="fas fa-arrow-down"></i>
+                            {% endif %}
+                        </span>
+                    </div>
+                    <div class="d-flex justify-content-between mb-3">
+                        <span>52 Hafta Yüksek:</span>
+                        <span>{{ stock.year_high|floatformat:2 }} ₺</span>
+                    </div>
+                    <div class="d-flex justify-content-between mb-3">
+                        <span>52 Hafta Düşük:</span>
+                        <span>{{ stock.year_low|floatformat:2 }} ₺</span>
+                    </div>
+                    <div class="d-flex justify-content-between mb-3">
+                        <span>İşlem Hacmi:</span>
+                        <span>{{ stock.volume|intcomma }}</span>
+                    </div>
+                    <div class="d-flex justify-content-between">
+                        <span>Piyasa Değeri:</span>
+                        <span>{{ stock.market_cap|intcomma }} ₺</span>
+                    </div>
+                </div>
+            </div>
+
+            <div class="card prediction-card">
+                <div class="card-header-custom">
+                    <h5 class="mb-0">Teknik Göstergeler</h5>
+                </div>
+                <div class="card-body">
+                    {% for indicator in technical_indicators %}
+                    <div class="technical-indicator {% if indicator.signal == 'Al' or indicator.signal == 'Yukarı' or indicator.signal == 'Aşırı Satım' %}indicator-bullish{% elif indicator.signal == 'Sat' or indicator.signal == 'Aşağı' or indicator.signal == 'Aşırı Alım' %}indicator-bearish{% else %}indicator-neutral{% endif %}">
+                        <div class="d-flex justify-content-between">
+                            <strong>{{ indicator.name }}:</strong>
+                            <span>{{ indicator.value|floatformat:2 }}</span>
+                        </div>
+                        <small>Sinyal: {{ indicator.signal }}</small>
+                    </div>
+                    {% empty %}
+                    <div class="text-center py-3">
+                        <p class="text-muted">Teknik gösterge bilgisi bulunamadı.</p>
+                    </div>
+                    {% endfor %}
+                </div>
+            </div>
+        </div>
+
+        <!-- Tahmin Görünümü -->
+        <div class="col-md-8">
+            <div class="card prediction-card">
+                <div class="card-header-custom">
+                    <div class="d-flex justify-content-between align-items-center">
+                        <h5 class="mb-0">Fiyat Tahmini</h5>
+                        <div class="time-horizon-selector">
+                            <div class="btn-group" role="group">
+                                {% for horizon in time_horizons %}
+                                <a href="?time_horizon={{ horizon }}" class="btn btn-sm {% if selected_horizon == horizon %}btn-primary{% else %}btn-outline-primary{% endif %}">{{ horizon }} Ay</a>
+                                {% endfor %}
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                <div class="card-body">
+                    {% if prediction %}
+                    <div class="row">
+                        <div class="col-md-6">
+                            <h6>{{ selected_horizon }} Aylık Tahmin:</h6>
+                            <div class="prediction-value {% if prediction.percent_change > 0 %}trend-up{% elif prediction.percent_change < 0 %}trend-down{% endif %}">
+                                {{ prediction.predicted_price|floatformat:2 }} ₺
+                                {% if prediction.percent_change > 0 %}
+                                <i class="fas fa-arrow-up"></i>
+                                {% elif prediction.percent_change < 0 %}
+                                <i class="fas fa-arrow-down"></i>
+                                {% endif %}
+                            </div>
+                            <div class="text-muted">
+                                Değişim: <span class="{% if prediction.percent_change > 0 %}trend-up{% elif prediction.percent_change < 0 %}trend-down{% endif %}">{{ prediction.percent_change|floatformat:2 }}%</span>
+                            </div>
+                            <div class="mt-3">
+                                <small>%{{ prediction.confidence_level|floatformat:0 }} Güven Aralığı:</small>
+                                <div class="confidence-bar w-100 {% if risk_level == 'Düşük' %}risk-low{% elif risk_level == 'Orta' %}risk-medium{% else %}risk-high{% endif %}"></div>
+                                <div class="d-flex justify-content-between">
+                                    <small>{{ prediction.lower_bound|floatformat:2 }} ₺</small>
+                                    <small>{{ prediction.upper_bound|floatformat:2 }} ₺</small>
+                                </div>
+                            </div>
+                            <div class="mt-3">
+                                <span class="badge badge-pill {% if risk_level == 'Düşük' %}badge-success{% elif risk_level == 'Orta' %}badge-warning{% else %}badge-danger{% endif %}">
+                                    Risk: {{ risk_level }}
+                                </span>
+                                <span class="model-badge {% if prediction.model.name == 'LSTMModel' %}model-lstm{% elif prediction.model.name == 'XGBoostModel' %}model-xgboost{% else %}model-hybrid{% endif %}">
+                                    {{ prediction.model.name|slice:":-5" }}
+                                </span>
+                                <small class="text-muted ml-2">{{ prediction.prediction_date|date:"d.m.Y" }}</small>
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            {% if price_chart %}
+                            <div class="text-center">
+                                <img src="{{ price_chart.image.url }}" alt="Fiyat Tahmini Grafiği" class="img-fluid">
+                            </div>
+                            {% else %}
+                            <div class="text-center p-4">
+                                <p class="text-muted">Grafik bulunamadı.</p>
+                            </div>
+                            {% endif %}
+                        </div>
+                    </div>
+                    {% else %}
+                    <div class="text-center py-4">
+                        <p class="text-muted">Bu hisse için tahmin bulunmuyor.</p>
+                        <a href="{% url 'create_prediction' stock.id %}" class="btn btn-primary">Tahmin Oluştur</a>
+                    </div>
+                    {% endif %}
+                </div>
+            </div>
+
+            {% if prediction %}
+            <div class="card prediction-card">
+                <div class="card-header-custom">
+                    <h5 class="mb-0">Tahmin Analizi</h5>
+                </div>
+                <div class="card-body">
+                    <div class="row">
+                        <div class="col-md-6">
+                            <h6>Trend Analizi:</h6>
+                            <p>{{ trend_comment }}</p>
+                            
+                            <div class="d-flex justify-content-between mb-2">
+                                <span>Yükseliş Olasılığı:</span>
+                                <span>%{{ uptrend_probability|floatformat:0 }}</span>
+                            </div>
+                            <div class="progress mb-4" style="height: 5px;">
+                                <div class="progress-bar bg-success" role="progressbar" style="width: {{ uptrend_probability }}%" aria-valuenow="{{ uptrend_probability }}" aria-valuemin="0" aria-valuemax="100"></div>
+                            </div>
+                            
+                            <h6>Risk Değerlendirmesi:</h6>
+                            <div class="d-flex justify-content-between mb-2">
+                                <span>Volatilite:</span>
+                                <span>%{{ volatility|floatformat:2 }}</span>
+                            </div>
+                            <div class="d-flex justify-content-between mb-2">
+                                <span>Düşüş Riski:</span>
+                                <span>%{{ downside_risk|floatformat:2 }}</span>
+                            </div>
+                            <div class="d-flex justify-content-between mb-2">
+                                <span>Yükseliş Potansiyeli:</span>
+                                <span>%{{ upside_potential|floatformat:2 }}</span>
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            {% if feature_importance %}
+                            <h6>Önemli Faktörler:</h6>
+                            <div style="max-height: 200px; overflow-y: auto;">
+                                {% for feature in feature_importance %}
+                                <div class="d-flex justify-content-between mb-2">
+                                    <span>{{ feature.feature }}:</span>
+                                    <span>{{ feature.importance|floatformat:2 }}</span>
+                                </div>
+                                <div class="progress mb-2" style="height: 5px;">
+                                    <div class="progress-bar bg-info" role="progressbar" style="width: {{ feature.importance_perc }}%" aria-valuenow="{{ feature.importance_perc }}" aria-valuemin="0" aria-valuemax="100"></div>
+                                </div>
+                                {% endfor %}
+                            </div>
+                            {% else %}
+                            <h6>Model Bilgisi:</h6>
+                            <p>{{ prediction.model.description }}</p>
+                            {% endif %}
+                            
+                            <div class="text-center report-btn">
+                                <a href="{% url 'view_prediction_report' prediction.id %}" class="btn btn-outline-primary">
+                                    <i class="fas fa-file-alt"></i> Detaylı Raporu Görüntüle
+                                </a>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            {% endif %}
+        </div>
+    </div>
+
+    <!-- Tarihsel Grafikler -->
+    <div class="row mt-4">
+        <div class="col-md-12">
+            <div class="card prediction-card">
+                <div class="card-header-custom">
+                    <h5 class="mb-0">Tarihsel Fiyat Grafiği</h5>
+                </div>
+                <div class="card-body">
+                    <div class="btn-group mb-3" role="group">
+                        <button type="button" class="btn btn-sm btn-outline-primary chart-period" data-period="1w">1 Hafta</button>
+                        <button type="button" class="btn btn-sm btn-outline-primary chart-period" data-period="1m">1 Ay</button>
+                        <button type="button" class="btn btn-sm btn-outline-primary chart-period active" data-period="3m">3 Ay</button>
+                        <button type="button" class="btn btn-sm btn-outline-primary chart-period" data-period="6m">6 Ay</button>
+                        <button type="button" class="btn btn-sm btn-outline-primary chart-period" data-period="1y">1 Yıl</button>
+                        <button type="button" class="btn btn-sm btn-outline-primary chart-period" data-period="all">Tümü</button>
+                    </div>
+                    <div id="historicalChart" style="height: 400px;"></div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Geçmiş Tahminler -->
+    <div class="row mt-4">
+        <div class="col-md-12">
+            <div class="card prediction-card">
+                <div class="card-header-custom">
+                    <h5 class="mb-0">Geçmiş Tahminler</h5>
+                </div>
+                <div class="card-body">
+                    {% if past_predictions %}
+                    <div class="table-responsive">
+                        <table class="table table-hover">
+                            <thead>
+                                <tr>
+                                    <th>Tarih</th>
+                                    <th>Model</th>
+                                    <th>Zaman Dilimi</th>
+                                    <th>Tahmin</th>
+                                    <th>Değişim</th>
+                                    <th>Doğruluk</th>
+                                    <th>İşlemler</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for pred in past_predictions %}
+                                <tr>
+                                    <td>{{ pred.prediction_date|date:"d.m.Y" }}</td>
+                                    <td>
+                                        <span class="badge {% if pred.model.name == 'LSTMModel' %}badge-primary{% elif pred.model.name == 'XGBoostModel' %}badge-secondary{% else %}badge-info{% endif %}">
+                                            {{ pred.model.name|slice:":-5" }}
+                                        </span>
+                                    </td>
+                                    <td>{{ pred.time_horizon }} Ay</td>
+                                    <td>{{ pred.predicted_price|floatformat:2 }} ₺</td>
+                                    <td class="{% if pred.percent_change > 0 %}trend-up{% elif pred.percent_change < 0 %}trend-down{% endif %}">
+                                        {{ pred.percent_change|floatformat:2 }}%
+                                    </td>
+                                    <td>
+                                        {% if pred.accuracy %}
+                                        <div class="progress" style="height: 5px;">
+                                            <div class="progress-bar bg-success" role="progressbar" style="width: {{ pred.accuracy }}%" aria-valuenow="{{ pred.accuracy }}" aria-valuemin="0" aria-valuemax="100"></div>
+                                        </div>
+                                        <small>%{{ pred.accuracy|floatformat:0 }}</small>
+                                        {% else %}
+                                        <small class="text-muted">Değerlendirme bekliyor</small>
+                                        {% endif %}
+                                    </td>
+                                    <td>
+                                        <a href="{% url 'view_prediction_report' pred.id %}" class="btn btn-sm btn-outline-info">
+                                            <i class="fas fa-file-alt"></i>
+                                        </a>
+                                    </td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                    {% else %}
+                    <div class="text-center py-4">
+                        <p class="text-muted">Bu hisse için geçmiş tahmin bulunamadı.</p>
+                    </div>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script src="https://cdn.jsdelivr.net/npm/apexcharts"></script>
+<script>
+    document.addEventListener('DOMContentLoaded', function() {
+        // İzleme listesi butonu
+        const watchlistBtn = document.getElementById('watchlistBtn');
+        if (watchlistBtn) {
+            watchlistBtn.addEventListener('click', function() {
+                const stockId = this.dataset.stock;
+                
+                fetch('/api/watchlist/toggle/', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'X-CSRFToken': '{{ csrf_token }}'
+                    },
+                    body: JSON.stringify({
+                        stock_id: stockId
+                    })
+                })
+                .then(response => response.json())
+                .then(data => {
+                    if (data.success) {
+                        if (data.action === 'added') {
+                            watchlistBtn.innerHTML = '<i class="fas fa-star"></i> İzleme Listesinden Çıkar';
+                        } else {
+                            watchlistBtn.innerHTML = '<i class="far fa-star"></i> İzleme Listesine Ekle';
+                        }
+                    }
+                });
+            });
+        }
+        
+        // Tarihsel grafik
+        var historicalPrices = {{ historical_data|safe }};
+        var chartOptions = {
+            series: [{
+                name: "Fiyat",
+                data: historicalPrices.map(item => [new Date(item.date).getTime(), item.price])
+            }],
+            chart: {
+                type: 'area',
+                height: 350,
+                zoom: {
+                    enabled: true
+                },
+                toolbar: {
+                    show: true
+                }
+            },
+            dataLabels: {
+                enabled: false
+            },
+            stroke: {
+                curve: 'smooth',
+                width: 2
+            },
+            title: {
+                text: '{{ stock.symbol }} Fiyat Grafiği',
+                align: 'left'
+            },
+            fill: {
+                type: 'gradient',
+                gradient: {
+                    shadeIntensity: 1,
+                    opacityFrom: 0.7,
+                    opacityTo: 0.3,
+                    stops: [0, 90, 100]
+                }
+            },
+            yaxis: {
+                title: {
+                    text: 'Fiyat (₺)'
+                },
+                labels: {
+                    formatter: function (val) {
+                        return val.toFixed(2) + " ₺";
+                    }
+                }
+            },
+            xaxis: {
+                type: 'datetime',
+                labels: {
+                    datetimeFormatter: {
+                        year: 'yyyy',
+                        month: 'MMM \'yy',
+                        day: 'dd MMM',
+                        hour: 'HH:mm'
+                    }
+                }
+            },
+            tooltip: {
+                x: {
+                    format: 'dd MMM yyyy'
+                },
+                y: {
+                    formatter: function(val) {
+                        return val.toFixed(2) + " ₺";
+                    }
+                }
+            },
+            markers: {
+                size: 0,
+                hover: {
+                    size: 5
+                }
+            }
+        };
+
+        var chart = new ApexCharts(document.querySelector("#historicalChart"), chartOptions);
+        chart.render();
+        
+        // Grafik periyot butonları
+        document.querySelectorAll('.chart-period').forEach(button => {
+            button.addEventListener('click', function() {
+                // Aktif sınıfı kaldır
+                document.querySelectorAll('.chart-period').forEach(btn => {
+                    btn.classList.remove('active');
+                    btn.classList.add('btn-outline-primary');
+                    btn.classList.remove('btn-primary');
+                });
+                
+                // Tıklanan butonu aktif yap
+                this.classList.add('active');
+                this.classList.remove('btn-outline-primary');
+                this.classList.add('btn-primary');
+                
+                // Tarih aralığını ayarla
+                const period = this.dataset.period;
+                let startDate = new Date();
+                
+                switch(period) {
+                    case '1w':
+                        startDate.setDate(startDate.getDate() - 7);
+                        break;
+                    case '1m':
+                        startDate.setMonth(startDate.getMonth() - 1);
+                        break;
+                    case '3m':
+                        startDate.setMonth(startDate.getMonth() - 3);
+                        break;
+                    case '6m':
+                        startDate.setMonth(startDate.getMonth() - 6);
+                        break;
+                    case '1y':
+                        startDate.setFullYear(startDate.getFullYear() - 1);
+                        break;
+                    default:
+                        startDate = null;
+                }
+                
+                if (startDate) {
+                    chart.zoomX(
+                        startDate.getTime(),
+                        new Date().getTime()
+                    );
+                } else {
+                    chart.resetSeries();
+                }
+            });
+        });
+    });
+</script>
+{% endblock %} 

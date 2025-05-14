@@ -144,3 +144,209 @@ class StockFile(models.Model):
 
     def __str__(self):
         return f"{self.stock.symbol} - {self.filename}"
+
+# Tahmin modeli için gerekli makroekonomik veriler
+class MacroeconomicData(models.Model):
+    date = models.DateField(verbose_name="Tarih")
+    
+    # Enflasyon verileri
+    tufe = models.DecimalField(max_digits=6, decimal_places=2, null=True, blank=True, verbose_name="TÜFE Aylık (%)")
+    tufe_yillik = models.DecimalField(max_digits=6, decimal_places=2, null=True, blank=True, verbose_name="TÜFE Yıllık (%)")
+    ufe = models.DecimalField(max_digits=6, decimal_places=2, null=True, blank=True, verbose_name="ÜFE Aylık (%)")
+    ufe_yillik = models.DecimalField(max_digits=6, decimal_places=2, null=True, blank=True, verbose_name="ÜFE Yıllık (%)")
+    
+    # Faiz verileri
+    policy_rate = models.DecimalField(max_digits=6, decimal_places=2, null=True, blank=True, verbose_name="TCMB Politika Faizi (%)")
+    bond_yield_2y = models.DecimalField(max_digits=6, decimal_places=2, null=True, blank=True, verbose_name="2 Yıllık Tahvil Faizi (%)")
+    bond_yield_10y = models.DecimalField(max_digits=6, decimal_places=2, null=True, blank=True, verbose_name="10 Yıllık Tahvil Faizi (%)")
+    
+    # Döviz kurları
+    usd_try = models.DecimalField(max_digits=8, decimal_places=4, null=True, blank=True, verbose_name="USD/TRY")
+    eur_try = models.DecimalField(max_digits=8, decimal_places=4, null=True, blank=True, verbose_name="EUR/TRY")
+    
+    # Ekonomik büyüme verileri
+    gdp_growth = models.DecimalField(max_digits=5, decimal_places=2, null=True, blank=True, verbose_name="GSYH Büyüme (%)")
+    
+    # İşsizlik oranı
+    unemployment_rate = models.DecimalField(max_digits=5, decimal_places=2, null=True, blank=True, verbose_name="İşsizlik Oranı (%)")
+    
+    # Piyasa verileri
+    bist100_close = models.DecimalField(max_digits=10, decimal_places=2, null=True, blank=True, verbose_name="BIST 100 Kapanış")
+    bist100_change = models.DecimalField(max_digits=5, decimal_places=2, null=True, blank=True, verbose_name="BIST 100 Değişim (%)")
+    market_volume = models.BigIntegerField(null=True, blank=True, verbose_name="Piyasa İşlem Hacmi (TL)")
+    
+    # Meta
+    created_at = models.DateTimeField(auto_now_add=True, verbose_name="Kayıt Tarihi")
+    updated_at = models.DateTimeField(auto_now=True, verbose_name="Güncelleme Tarihi")
+    
+    def __str__(self):
+        return f"Makroekonomik Veri - {self.date}"
+    
+    class Meta:
+        verbose_name = "Makroekonomik Veri"
+        verbose_name_plural = "Makroekonomik Veriler"
+        ordering = ['-date']
+        get_latest_by = "date"
+
+# Sektör bilgileri
+class Sector(models.Model):
+    name = models.CharField(max_length=100, verbose_name="Sektör Adı")
+    code = models.CharField(max_length=20, unique=True, verbose_name="Sektör Kodu")
+    description = models.TextField(null=True, blank=True, verbose_name="Açıklama")
+    
+    def __str__(self):
+        return self.name
+    
+    class Meta:
+        verbose_name = "Sektör"
+        verbose_name_plural = "Sektörler"
+        ordering = ['name']
+
+# OCR ile işlenen enflasyon verileri
+class InflationData(models.Model):
+    MONTH_CHOICES = [
+        ('Ocak', 'Ocak'),
+        ('Şubat', 'Şubat'),
+        ('Mart', 'Mart'),
+        ('Nisan', 'Nisan'),
+        ('Mayıs', 'Mayıs'),
+        ('Haziran', 'Haziran'),
+        ('Temmuz', 'Temmuz'),
+        ('Ağustos', 'Ağustos'),
+        ('Eylül', 'Eylül'),
+        ('Ekim', 'Ekim'),
+        ('Kasım', 'Kasım'),
+        ('Aralık', 'Aralık'),
+    ]
+    
+    month = models.CharField(max_length=10, choices=MONTH_CHOICES, verbose_name="Ay")
+    year = models.IntegerField(verbose_name="Yıl")
+    tufe_monthly = models.DecimalField(max_digits=6, decimal_places=2, verbose_name="TÜFE Aylık (%)")
+    tufe_yearly = models.DecimalField(max_digits=6, decimal_places=2, verbose_name="TÜFE Yıllık (%)")
+    ufe_monthly = models.DecimalField(max_digits=6, decimal_places=2, verbose_name="ÜFE Aylık (%)")
+    ufe_yearly = models.DecimalField(max_digits=6, decimal_places=2, verbose_name="ÜFE Yıllık (%)")
+    source = models.CharField(max_length=50, default="TÜİK", verbose_name="Veri Kaynağı")
+    created_at = models.DateTimeField(auto_now_add=True, verbose_name="Oluşturulma Tarihi")
+    updated_at = models.DateTimeField(auto_now=True, verbose_name="Güncellenme Tarihi")
+    
+    def __str__(self):
+        return f"{self.year} {self.month} - Enflasyon Verileri"
+    
+    class Meta:
+        verbose_name = "Enflasyon Verisi"
+        verbose_name_plural = "Enflasyon Verileri"
+        ordering = ['-year', 'month']
+        unique_together = ['month', 'year']
+
+# Sektör endeksleri
+class SectorIndex(models.Model):
+    sector = models.ForeignKey(Sector, on_delete=models.CASCADE, related_name='indices', verbose_name="Sektör")
+    date = models.DateField(verbose_name="Tarih")
+    value = models.DecimalField(max_digits=10, decimal_places=2, verbose_name="Endeks Değeri")
+    change = models.DecimalField(max_digits=5, decimal_places=2, verbose_name="Günlük Değişim (%)")
+    volume = models.BigIntegerField(verbose_name="İşlem Hacmi")
+    
+    def __str__(self):
+        return f"{self.sector.name} - {self.date}"
+    
+    class Meta:
+        verbose_name = "Sektör Endeksi"
+        verbose_name_plural = "Sektör Endeksleri"
+        ordering = ['-date']
+        unique_together = ['sector', 'date']
+
+# Şirket finansal verileri
+class CompanyFinancial(models.Model):
+    PERIOD_CHOICES = [
+        ('Q1', '1. Çeyrek'),
+        ('Q2', '2. Çeyrek'),
+        ('Q3', '3. Çeyrek'),
+        ('Q4', '4. Çeyrek'),
+        ('ANNUAL', 'Yıllık'),
+    ]
+    
+    stock = models.ForeignKey(Stock, on_delete=models.CASCADE, related_name='financials', verbose_name="Hisse")
+    period = models.CharField(max_length=10, choices=PERIOD_CHOICES, verbose_name="Dönem")
+    year = models.IntegerField(verbose_name="Yıl")
+    
+    # Temel finansal veriler
+    revenue = models.BigIntegerField(null=True, blank=True, verbose_name="Satış Geliri (TL)")
+    ebitda = models.BigIntegerField(null=True, blank=True, verbose_name="FAVÖK (TL)")
+    net_income = models.BigIntegerField(null=True, blank=True, verbose_name="Net Kar (TL)")
+    
+    # Bilanço verileri
+    total_assets = models.BigIntegerField(null=True, blank=True, verbose_name="Toplam Varlıklar (TL)")
+    total_liabilities = models.BigIntegerField(null=True, blank=True, verbose_name="Toplam Yükümlülükler (TL)")
+    equity = models.BigIntegerField(null=True, blank=True, verbose_name="Özkaynaklar (TL)")
+    
+    # Oranlar
+    debt_to_equity = models.DecimalField(max_digits=10, decimal_places=2, null=True, blank=True, verbose_name="Borç/Özsermaye")
+    roe = models.DecimalField(max_digits=10, decimal_places=2, null=True, blank=True, verbose_name="ROE (%)")
+    
+    # Hisse başı veriler
+    eps = models.DecimalField(max_digits=10, decimal_places=2, null=True, blank=True, verbose_name="Hisse Başı Kazanç (TL)")
+    
+    # Temettü verileri
+    dividend = models.DecimalField(max_digits=10, decimal_places=2, null=True, blank=True, verbose_name="Temettü (TL)")
+    dividend_yield = models.DecimalField(max_digits=5, decimal_places=2, null=True, blank=True, verbose_name="Temettü Verimi (%)")
+    
+    # Piyasa çarpanları
+    pe_ratio = models.DecimalField(max_digits=10, decimal_places=2, null=True, blank=True, verbose_name="F/K Oranı")
+    pb_ratio = models.DecimalField(max_digits=10, decimal_places=2, null=True, blank=True, verbose_name="PD/DD")
+    ev_ebitda = models.DecimalField(max_digits=10, decimal_places=2, null=True, blank=True, verbose_name="FD/FAVÖK")
+    
+    # Meta
+    created_at = models.DateTimeField(auto_now_add=True, verbose_name="Kayıt Tarihi")
+    updated_at = models.DateTimeField(auto_now=True, verbose_name="Güncelleme Tarihi")
+    
+    def __str__(self):
+        return f"{self.stock.symbol} - {self.year} {self.period}"
+    
+    class Meta:
+        verbose_name = "Şirket Finansalı"
+        verbose_name_plural = "Şirket Finansalları"
+        ordering = ['-year', '-period']
+        unique_together = ['stock', 'period', 'year']
+
+# Sosyal Medya ve Haber Duygu Analizi
+class SentimentData(models.Model):
+    SENTIMENT_CHOICES = [
+        ('VERY_POSITIVE', 'Çok Olumlu'),
+        ('POSITIVE', 'Olumlu'),
+        ('NEUTRAL', 'Nötr'),
+        ('NEGATIVE', 'Olumsuz'),
+        ('VERY_NEGATIVE', 'Çok Olumsuz'),
+    ]
+    
+    SOURCE_CHOICES = [
+        ('TWITTER', 'Twitter'),
+        ('NEWS', 'Haber'),
+        ('FORUM', 'Forum'),
+        ('ANALYST', 'Analist'),
+        ('OTHER', 'Diğer'),
+    ]
+    
+    stock = models.ForeignKey(Stock, on_delete=models.CASCADE, related_name='sentiments', verbose_name="Hisse")
+    date = models.DateField(verbose_name="Tarih")
+    
+    # Duygu verileri
+    sentiment_score = models.DecimalField(max_digits=5, decimal_places=2, verbose_name="Duygu Skoru (-1 ila 1)")
+    sentiment_label = models.CharField(max_length=15, choices=SENTIMENT_CHOICES, verbose_name="Duygu Etiketi")
+    source = models.CharField(max_length=10, choices=SOURCE_CHOICES, verbose_name="Kaynak")
+    
+    # Metin içeriği (isteğe bağlı)
+    content_sample = models.TextField(null=True, blank=True, verbose_name="İçerik Örneği")
+    
+    # Hacim verileri
+    mention_count = models.IntegerField(default=0, verbose_name="Bahsedilme Sayısı")
+    
+    # Meta
+    created_at = models.DateTimeField(auto_now_add=True, verbose_name="Kayıt Tarihi")
+    
+    def __str__(self):
+        return f"{self.stock.symbol} - {self.date} Duygu Analizi"
+    
+    class Meta:
+        verbose_name = "Duygu Analizi"
+        verbose_name_plural = "Duygu Analizleri"
+        ordering = ['-date']
