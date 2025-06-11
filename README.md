@@ -1,13 +1,12 @@
-# Hisse Tahmin Projesi 📈
+# Hisse Tahmin Projesi 
 
-![Proje Banner](docs/banner.png)
 
 Bu proje, Borsa İstanbul'da işlem gören hisse senetlerinin fiyat tahminlerini yapmak için geliştirilmiş kapsamlı bir web uygulamasıdır. Makine öğrenmesi algoritmaları kullanarak, teknik ve temel analiz verilerini birleştirerek tahminler üretir.
 
-## 🌟 Özellikler
+##  Özellikler
 
-### 📊 Veri Analizi ve Tahmin
-![Veri Analizi](docs/data-analysis.png)
+###  Veri Analizi ve Tahmin
+
 
 - **Kapsamlı Veri Analizi**
   - Teknik analiz göstergeleri (RSI, MACD, Bollinger Bantları vb.)
@@ -15,33 +14,33 @@ Bu proje, Borsa İstanbul'da işlem gören hisse senetlerinin fiyat tahminlerini
   - Makroekonomik veriler (Enflasyon, faiz oranları, döviz kurları)
   - Sektörel analizler ve regülasyonlar
 
-### 🤖 Tahmin Modeli
-![Tahmin Modeli](docs/prediction-model.png)
+###  Tahmin Modeli
+
 
 - **Gelişmiş Tahmin Modeli**
   - Makine öğrenmesi tabanlı tahmin algoritmaları
   - Çoklu veri kaynağı entegrasyonu
   - Otomatik model güncelleme ve optimizasyon
 
-### 👥 Kullanıcı Arayüzü
-![Dashboard](docs/dashboard.png)
+###  Kullanıcı Arayüzü
+
 
 - **Kullanıcı Yönetimi**
   - Güvenli kullanıcı kimlik doğrulama
   - Rol tabanlı yetkilendirme (Admin/Kullanıcı)
   - Kişiselleştirilmiş dashboard
 
-### 📈 Veri Yönetimi
-![Veri Yönetimi](docs/data-management.png)
+###  Veri Yönetimi
+
 
 - **Veri Yönetimi**
   - Excel ve PDF dosyalarından otomatik veri çekme
   - Toplu veri işleme ve analiz
   - Detaylı raporlama ve görselleştirme
 
-## 🛠️ Teknolojiler
+##  Teknolojiler
 
-![Teknoloji Stack](docs/tech-stack.png)
+
 
 - **Backend**
   - Django 5.1.7
@@ -58,10 +57,34 @@ Bu proje, Borsa İstanbul'da işlem gören hisse senetlerinin fiyat tahminlerini
   - CSS3
   - JavaScript
   - Bootstrap
+ 
+# Proje görselleri
+## 1-) Admin Ekranı
+    admin yetkisi olan kullanıcı buradan sayfadaki genel ayarları kolaylıkla yönetebiliyor ve gözlemleyebiliyor.    
+![Admin Paneli](docs/1.png)
+   
+## 2-) Hisse Senedi İşlemleri
+    bu kısımda kullanıcı hisse ekleyebiliyor, silebiliyor ve güncelleyebiliyor
+  ![Hisselerim Sayfası](docs/2.png)
+
+## 3-) Hisse verilerini yükleme, Veritabanına kaydetme
+    Kullanıcı ilgili hisse senedinin geçmiş fiyat verilerini dosya olarak yükleyebilir, bu verileri 'İşle' butonu ile veritabanına kaydedebilir ve yüklediği dosya hakkında bir not bırakabilir
+  ![Hisse Senedi Veri Ekleme Sayfası](docs/3.png)
+  
+## 4-) Hisse Senedi Verilerini kullanarak hesaplamalar yapmak, Bazı verileri kullanıcıya göstermek
+    İlgili hisse senedinin önemli hareketli ortalamaları hesaplanarak kaydediliyor.
+  ![Hisse Senedi Verilerini Hesaplama](docs/4.png)
+
+## 5-) Hisse Hakkında bir tahmin modeli Seçerek tahmin işlemi başlatma, Önemli hareketli ortalamaları gösterme
+  ![ Önemli hareketli ortalamaları gösterme](docs/5.png)
+  ![Hisse Hakkında bir tahmin modeli Seçerek tahmin işlemi başlatma](docs/6.png)
+
+## 6-) Tahmin Modelinde Kullanılacak detaylı bilgiler için kapsamlı bir bilgi toplama sayfası
+  ![Tahmin Modeli için gerekli bilgilerin toplandığı sayfa](docs/7.png)
 
 ## 🚀 Kurulum
 
-![Kurulum Adımları](docs/installation.png)
+
 
 1. Projeyi klonlayın:
 ```bash
@@ -107,9 +130,9 @@ python manage.py createsuperuser
 python manage.py runserver
 ```
 
-## 📊 Veri Kaynakları
+##  Veri Kaynakları
 
-![Veri Kaynakları](docs/data-sources.png)
+
 
 - Borsa İstanbul (BIST)
 - Türkiye İstatistik Kurumu (TÜİK)
@@ -118,7 +141,7 @@ python manage.py runserver
 
 ## 🔒 Güvenlik
 
-![Güvenlik](docs/security.png)
+
 
 - Hassas bilgiler `.env` dosyasında saklanır
 - Kullanıcı şifreleri güvenli bir şekilde hashlenir
@@ -127,7 +150,6 @@ python manage.py runserver
 
 ## 🤝 Katkıda Bulunma
 
-![Katkıda Bulunma](docs/contribution.png)
 
 1. Bu depoyu fork edin
 2. Yeni bir branch oluşturun (`git checkout -b feature/amazing-feature`)
@@ -141,8 +163,8 @@ Bu proje MIT lisansı altında lisanslanmıştır. Detaylar için [LICENSE](LICE
 
 ## 📞 İletişim
 
-![İletişim](docs/contact.png)
+Sorularınız veya önerileriniz için: [erdaltasar24@gmail.com](mailto:erdaltasar24@gmail.com)
 
-Proje Sahibi - [@twitter_handle](https://twitter.com/twitter_handle)
+---
 
-Proje Linki: [https://github.com/kullaniciadi/hisse-tahmin](https://github.com/kullaniciadi/hisse-tahmin) 
+⭐ Bu projeyi beğendiyseniz, yıldız vermeyi unutmayın! ⭐
