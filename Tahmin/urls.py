@@ -58,5 +58,8 @@ urlpatterns = [
     # Enflasyon verileri
     path('inflation-data/', views.inflation_data, name='inflation_data'),
     path('inflation-data/delete/<int:data_id>/', views.delete_inflation_data, name='delete_inflation_data'),
+    path('import-company-financial/', views.import_company_financial, name='import_company_financial'),
+    path('company-financial-detail/<int:financial_id>/', views.company_financial_detail, name='company_financial_detail'),
+    path('financial-list/', views.financial_list, name='financial_list'),
 ]
 

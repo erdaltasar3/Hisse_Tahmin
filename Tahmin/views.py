@@ -6,7 +6,7 @@ from django.contrib.auth.decorators import login_required, user_passes_test
 from django.utils import timezone
 from datetime import datetime
 from django.contrib.auth.views import LoginView
-from .models import Stock, StockPrice, StockAnalysis, StockFile, MacroeconomicData, InflationData
+from .models import Stock, StockPrice, StockAnalysis, StockFile, MacroeconomicData, InflationData, InterestRate, ExchangeRate, CompanyFinancial
 from django.urls import reverse
 from django.http import JsonResponse
 from django.template.loader import render_to_string
@@ -20,6 +20,14 @@ import logging
 import numpy as np
 import time
 from sklearn.model_selection import train_test_split
+from django.core.files.storage import default_storage
+from django.core.files.base import ContentFile
+import tempfile
+import zipfile
+import io
+import PyPDF2
+import re
+from django.core.paginator import Paginator, PageNotAnInteger, EmptyPage
 
 # Create your views here.
 
@@ -61,32 +69,29 @@ def dashboard(request):
 
 def register(request):
     if request.method == 'POST':
-        print("Gelen veri:", request.POST)  # POST verilerini görüntüle
-        print("Password:", request.POST.get('password1'))   # Kullanıcı bilgisini görüntüle
         username = request.POST.get('username')
         password = request.POST.get('password1')
         email = request.POST.get('email')
         
+        # Kullanıcı adı kontrolü
         if User.objects.filter(username=username).exists():
             messages.error(request, 'Bu kullanıcı adı zaten kullanılıyor.')
             return redirect('register')
             
+        # Email kontrolü
         if email and User.objects.filter(email=email).exists():
-            messages.error(request, 'Bu e-posta adresi zaten kullanılıyor.')
+            messages.error(request, 'Bu email adresi zaten kullanılıyor.')
             return redirect('register')
-        
-        try:
-            user = User.objects.create_user(
-                username=username,
-                email=email,
-                password=password
-            )
-            messages.success(request, 'Kayıt başarılı! Şimdi giriş yapabilirsiniz.')
-            return redirect('login')
-        except Exception as e:
-            messages.error(request, f'Kayıt sırasında bir hata oluştu: {str(e)}')
-            return redirect('register')
-        
+            
+        # Yeni kullanıcı oluştur
+        user = User.objects.create_user(
+            username=username,
+            email=email,
+            password=password
+        )
+        messages.success(request, 'Kayıt başarılı! Şimdi giriş yapabilirsiniz.')
+        return redirect('login')
+    
     return render(request, 'Tahmin/register.html')
 
 @login_required
@@ -1559,6 +1564,288 @@ def import_macroeconomic_data(request):
             messages.error(request, f'Enflasyon verileri işlenirken bir hata oluştu: {str(e)}')
             return redirect('import_macroeconomic_data')
     
+    # Faiz oranları - Ayrı dosyalar yükleme ve birleştirme
+    elif request.method == 'POST' and request.POST.get('data_type') == 'interest' and request.POST.get('upload_method') == 'separate':
+        try:
+            import json
+            import pandas as pd
+            from django.core.files.storage import default_storage
+            from django.core.files.base import ContentFile
+            import os
+            from datetime import datetime
+            
+            # Politika faizi verilerini al (JSON)
+            policy_rate_data_json = request.POST.get('policy_rate_data')
+            
+            # Tahvil faizi dosyasını al
+            bond_yield_file = request.FILES.get('bond_yield_file')
+            
+            # En az birinin girilmiş olması gerekiyor - ARTIK GEREKLI DEĞIL
+            # Her biri ayrı ayrı işlenebilir - politika faizi ve tahvil faizi bağımsız olabilir
+            # if not policy_rate_data_json and not bond_yield_file:
+            #     messages.error(request, 'Politika faizi veya tahvil faizi verilerinden en az birini girmelisiniz')
+            #     return redirect('import_macroeconomic_data')
+            
+            combined_data = []
+            
+            # Politika faizi verilerini işle
+            if policy_rate_data_json:
+                try:
+                    # JSON verisini parse et
+                    policy_rate_data = json.loads(policy_rate_data_json)
+                    
+                    # Politika faizi verilerini DataFrame'e dönüştür
+                    policy_rate_df = pd.DataFrame(policy_rate_data)
+                    policy_rate_df.rename(columns={'date': 'tarih', 'policy_rate': 'policy_rate'}, inplace=True)
+                    
+                    # Tarih formatını kontrol et ve düzelt (string -> datetime)
+                    policy_rate_df['tarih'] = pd.to_datetime(policy_rate_df['tarih'])
+                    
+                    # Verileri combined_data listesine ekle
+                    for _, row in policy_rate_df.iterrows():
+                        tarih_str = row['tarih'].strftime('%Y-%m-%d')
+                        combined_data.append({
+                            'tarih': tarih_str,
+                            'policy_rate': row['policy_rate'] if not pd.isna(row['policy_rate']) else None,
+                            'bond_yield_2y': None,
+                            'bond_yield_10y': None
+                        })
+                except Exception as e:
+                    messages.error(request, f'Politika faizi verileri işlenirken hata oluştu: {str(e)}')
+                    return redirect('import_macroeconomic_data')
+            
+            # Tahvil faizi dosyasını işle
+            if bond_yield_file:
+                try:
+                    # Dosyayı geçici olarak kaydet
+                    file_path = default_storage.save(f'temp/bond_yield_{datetime.now().strftime("%Y%m%d%H%M%S")}.xlsx', ContentFile(bond_yield_file.read()))
+                    full_temp_path = os.path.join(default_storage.location, file_path)
+                    
+                    # Dosya uzantısını kontrol et (CSV veya Excel)
+                    if bond_yield_file.name.lower().endswith('.csv'):
+                        bond_yield_df = pd.read_csv(full_temp_path)
+                    else:
+                        bond_yield_df = pd.read_excel(full_temp_path)
+                    
+                    # Tahvil faizi DataFrame'in sütun isimlerini kontrol et
+                    required_columns = ['tarih']
+                    missing_columns = [col for col in required_columns if col not in bond_yield_df.columns]
+                    
+                    if missing_columns:
+                        default_storage.delete(file_path)
+                        messages.error(request, f'Tahvil faizi dosyasında gerekli sütunlar bulunamadı: {", ".join(missing_columns)}')
+                        return redirect('import_macroeconomic_data')
+                    
+                    # En az bir faiz sütunu olmalı
+                    has_yield_columns = False
+                    if 'bond_yield_2y' in bond_yield_df.columns:
+                        has_yield_columns = True
+                    if 'bond_yield_10y' in bond_yield_df.columns:
+                        has_yield_columns = True
+                    
+                    if not has_yield_columns:
+                        default_storage.delete(file_path)
+                        messages.error(request, 'Tahvil faizi dosyasında en az bir faiz sütunu (bond_yield_2y veya bond_yield_10y) bulunmalıdır')
+                        return redirect('import_macroeconomic_data')
+                    
+                    # Tarih formatını kontrol et ve düzelt (string -> datetime)
+                    bond_yield_df['tarih'] = pd.to_datetime(bond_yield_df['tarih'])
+                    
+                    # Eğer politika faizi verisi yoksa, tahvil verisinden combined_data'yı oluştur
+                    if not policy_rate_data_json:
+                        for _, row in bond_yield_df.iterrows():
+                            tarih_str = row['tarih'].strftime('%Y-%m-%d')
+                            bond_yield_2y = row.get('bond_yield_2y') if 'bond_yield_2y' in row and not pd.isna(row['bond_yield_2y']) else None
+                            bond_yield_10y = row.get('bond_yield_10y') if 'bond_yield_10y' in row and not pd.isna(row['bond_yield_10y']) else None
+                            
+                            combined_data.append({
+                                'tarih': tarih_str,
+                                'policy_rate': None,
+                                'bond_yield_2y': bond_yield_2y,
+                                'bond_yield_10y': bond_yield_10y
+                            })
+                    else:
+                        # Politika faizi verisi varsa, tarih kontrolü yapıp birleştir
+                        for data in combined_data:
+                            tarih = data['tarih']
+                            # Tahvil verilerinde bu tarih var mı kontrol et
+                            matching_rows = bond_yield_df[bond_yield_df['tarih'] == pd.to_datetime(tarih)]
+                            
+                            if not matching_rows.empty:
+                                row = matching_rows.iloc[0]
+                                data['bond_yield_2y'] = row.get('bond_yield_2y') if 'bond_yield_2y' in row and not pd.isna(row['bond_yield_2y']) else None
+                                data['bond_yield_10y'] = row.get('bond_yield_10y') if 'bond_yield_10y' in row and not pd.isna(row['bond_yield_10y']) else None
+                        
+                        # Tahvil verilerindeki ek tarihleri de ekle
+                        for _, row in bond_yield_df.iterrows():
+                            tarih_str = row['tarih'].strftime('%Y-%m-%d')
+                            # Bu tarih combined_data'da yoksa ekle
+                            if not any(d['tarih'] == tarih_str for d in combined_data):
+                                bond_yield_2y = row.get('bond_yield_2y') if 'bond_yield_2y' in row and not pd.isna(row['bond_yield_2y']) else None
+                                bond_yield_10y = row.get('bond_yield_10y') if 'bond_yield_10y' in row and not pd.isna(row['bond_yield_10y']) else None
+                                
+                                combined_data.append({
+                                    'tarih': tarih_str,
+                                    'policy_rate': None,
+                                    'bond_yield_2y': bond_yield_2y,
+                                    'bond_yield_10y': bond_yield_10y
+                                })
+                    
+                    # Geçici dosyayı sil
+                    default_storage.delete(file_path)
+                    
+                except Exception as e:
+                    if 'file_path' in locals():
+                        default_storage.delete(file_path)
+                    messages.error(request, f'Tahvil faizi dosyası işlenirken hata oluştu: {str(e)}')
+                    return redirect('import_macroeconomic_data')
+            
+            # Veriler boş ise uyarı ver
+            if not combined_data:
+                messages.warning(request, 'İşlenecek veri bulunamadı. Lütfen politika faizi veya tahvil faizi verisi ekleyin.')
+                return redirect('import_macroeconomic_data')
+            
+            # Veritabanına kaydet
+            success_count = 0
+            error_count = 0
+            
+            for data in combined_data:
+                try:
+                    if data['tarih'] and (data['policy_rate'] is not None or data['bond_yield_2y'] is not None or data['bond_yield_10y'] is not None):
+                        # Mevcut kayıt var mı kontrol et
+                        try:
+                            existing_record = InterestRate.objects.get(date=data['tarih'])
+                            
+                            # Mevcut kaydı güncelle (sadece boş olmayan alanları)
+                            if data['policy_rate'] is not None:
+                                existing_record.policy_rate = data['policy_rate']
+                            if data['bond_yield_2y'] is not None:
+                                existing_record.bond_yield_2y = data['bond_yield_2y']
+                            if data['bond_yield_10y'] is not None:
+                                existing_record.bond_yield_10y = data['bond_yield_10y']
+                                
+                            existing_record.save()
+                        except InterestRate.DoesNotExist:
+                            # Yeni kayıt oluştur
+                            InterestRate.objects.create(
+                                date=data['tarih'],
+                                policy_rate=data['policy_rate'] if data['policy_rate'] is not None else 0,
+                                bond_yield_2y=data['bond_yield_2y'] if data['bond_yield_2y'] is not None else 0,
+                                bond_yield_10y=data['bond_yield_10y'] if data['bond_yield_10y'] is not None else 0
+                            )
+                        
+                        success_count += 1
+                except Exception as e:
+                    error_count += 1
+                    print(f"Veri kaydedilemedi: {str(e)}")
+            
+            # Başarı mesajı göster
+            if success_count > 0:
+                messages.success(request, f'{success_count} faiz verisi başarıyla yüklendi/güncellendi. {error_count} veri yüklenemedi.')
+            else:
+                messages.warning(request, 'Hiçbir faiz verisi yüklenemedi. Lütfen dosyaları kontrol edin.')
+            
+            return redirect('import_macroeconomic_data')
+                
+        except Exception as e:
+            messages.error(request, f'Faiz verileri işlenirken bir hata oluştu: {str(e)}')
+            return redirect('import_macroeconomic_data')
+    
+    # Faiz oranları - Birleşik dosya yükleme
+    elif request.method == 'POST' and request.POST.get('data_type') == 'interest' and request.POST.get('upload_method') == 'combined':
+        try:
+            # Dosyayı al
+            if not request.FILES.get('interest_file'):
+                messages.error(request, 'Faiz oranları dosyasını yüklemeniz gerekiyor.')
+                return redirect('import_macroeconomic_data')
+                
+            # Standart yükleme işlemini yap
+            import pandas as pd
+            from django.core.files.storage import default_storage
+            from django.core.files.base import ContentFile
+            import os
+            from datetime import datetime
+            
+            interest_file = request.FILES['interest_file']
+            
+            # Dosyayı geçici olarak kaydet
+            timestamp = datetime.now().strftime("%Y%m%d%H%M%S")
+            path = default_storage.save(f'temp/interest_{timestamp}.xlsx', ContentFile(interest_file.read()))
+            full_path = os.path.join(settings.MEDIA_ROOT, path)
+            
+            # Excel'i oku
+            try:
+                df = pd.read_excel(full_path)
+            except Exception as e:
+                # Excel okuma hatası
+                default_storage.delete(path)
+                messages.error(request, f'Excel dosyası okunamadı: {str(e)}')
+                return redirect('import_macroeconomic_data')
+            
+            # Geçici dosyayı sil
+            default_storage.delete(path)
+            
+            # Gerekli sütunları kontrol et
+            required_columns = ['tarih', 'policy_rate', 'bond_yield_2y', 'bond_yield_10y']
+            missing_columns = [col for col in required_columns if col not in df.columns]
+            if missing_columns:
+                messages.error(request, f'Excel dosyasında {", ".join(missing_columns)} sütun(lar)ı bulunamadı.')
+                return redirect('import_macroeconomic_data')
+            
+            # Verileri işle
+            success_count = 0
+            error_count = 0
+            error_details = []
+            
+            for _, row in df.iterrows():
+                try:
+                    # Var olan veriyi kontrol et
+                    try:
+                        existing_data = MacroeconomicData.objects.get(date=row['tarih'])
+                        
+                        # Sadece faiz verilerini güncelle
+                        if not pd.isna(row['policy_rate']):
+                            existing_data.policy_rate = row['policy_rate']
+                        if not pd.isna(row['bond_yield_2y']):
+                            existing_data.bond_yield_2y = row['bond_yield_2y'] 
+                        if not pd.isna(row['bond_yield_10y']):
+                            existing_data.bond_yield_10y = row['bond_yield_10y']
+                        
+                        existing_data.save()
+                        success_count += 1
+                        
+                    except MacroeconomicData.DoesNotExist:
+                        # Yeni veri oluştur
+                        macro_data = MacroeconomicData(
+                            date=row['tarih'],
+                            policy_rate=None if pd.isna(row['policy_rate']) else row['policy_rate'],
+                            bond_yield_2y=None if pd.isna(row['bond_yield_2y']) else row['bond_yield_2y'],
+                            bond_yield_10y=None if pd.isna(row['bond_yield_10y']) else row['bond_yield_10y']
+                        )
+                        macro_data.save()
+                        success_count += 1
+                    
+                except Exception as e:
+                    error_count += 1
+                    error_details.append(f"Satır {_ + 2}: {str(e)}")
+            
+            # Sonucu bildir
+            if success_count > 0:
+                messages.success(request, f'{success_count} adet faiz verisi başarıyla kaydedildi/güncellendi.')
+            
+            if error_count > 0:
+                messages.warning(request, f'{error_count} adet veri işlenirken hata oluştu.')
+                for error in error_details[:5]:
+                    messages.error(request, error)
+                if error_count > 5:
+                    messages.error(request, f'... ve {error_count - 5} hata daha.')
+            
+            return redirect('macroeconomic_data')
+            
+        except Exception as e:
+            messages.error(request, f'Faiz verileri işlenirken bir hata oluştu: {str(e)}')
+            return redirect('import_macroeconomic_data')
+    
     # Excel dosyası ile makroekonomik verileri içe aktarma
     elif request.method == 'POST' and request.FILES.get('data_file'):
         try:
@@ -1644,6 +1931,258 @@ def import_macroeconomic_data(request):
         except Exception as e:
             messages.error(request, f'Dosya işlenirken bir hata oluştu: {str(e)}')
     
+    # Döviz kuru verilerini işleme (USD/TL ve EUR/TL ayrı dosyalar)
+    elif request.method == 'POST' and request.POST.get('data_type') == 'exchange' and request.POST.get('upload_method') == 'separate':
+        try:
+            import pandas as pd
+            from django.core.files.storage import default_storage
+            from django.core.files.base import ContentFile
+            import os
+            from datetime import datetime
+            from .models import ExchangeRate
+            import logging
+            
+            logger = logging.getLogger(__name__)
+            
+            # Hangi döviz kuru verisi yükleniyor?
+            currency_type = request.POST.get('currency_type')
+            logger.info(f"Döviz kuru işleniyor: {currency_type}")
+            
+            if not currency_type or currency_type not in ['USD', 'EUR']:
+                messages.error(request, 'Geçerli bir para birimi seçmelisiniz (USD veya EUR)')
+                if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
+                    return render(request, 'Tahmin/messages.html')
+                return redirect('import_macroeconomic_data')
+            
+            # Döviz kuru dosyasını al
+            exchange_file = request.FILES.get('exchange_file')
+            if not exchange_file:
+                messages.error(request, 'Döviz kuru dosyası yüklemelisiniz')
+                if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
+                    return render(request, 'Tahmin/messages.html')
+                return redirect('import_macroeconomic_data')
+            
+            logger.info(f"Dosya adı: {exchange_file.name}, Boyut: {exchange_file.size} bytes")
+            
+            # Dosyayı geçici olarak kaydet
+            timestamp = datetime.now().strftime("%Y%m%d%H%M%S")
+            file_path = default_storage.save(f'temp/exchange_{currency_type}_{timestamp}.csv', ContentFile(exchange_file.read()))
+            full_temp_path = os.path.join(default_storage.location, file_path)
+            
+            logger.info(f"Geçici dosya yolu: {full_temp_path}")
+            
+            # CSV dosyasını oku (CSV formatı: tarih,şimdi,açılış,yüksek,düşük,hacim,fark%)
+            try:
+                if exchange_file.name.lower().endswith('.csv'):
+                    df = pd.read_csv(full_temp_path)
+                else:
+                    df = pd.read_excel(full_temp_path)
+                    
+                # İlk satırı kontrol et ve başlık satırı değilse kolonsuz olarak oku
+                if 'tarih' not in df.columns and 'Tarih' not in df.columns and len(df.columns) >= 6:
+                    # Başlık satırı olmadan okunan CSV/Excel dosyasını yeniden isimlendir
+                    df.columns = ['Tarih', 'Şimdi', 'Açılış', 'Yüksek', 'Düşük', 'Hac.', 'Fark %']
+                
+                logger.info(f"DataFrame sütunları: {df.columns.tolist()}")
+                logger.info(f"DataFrame boyutu: {df.shape}")
+                
+                # İlk satırın ham verilerini logla
+                if len(df) > 0:
+                    first_row = df.iloc[0]
+                    logger.info(f"İlk satır (ham): {dict(first_row)}")
+                    logger.info(f"Veri tipleri: {first_row.dtypes}")
+                    
+                    # Sayısal kolonların tiplerini kontrol et
+                    for col in ['Şimdi', 'Açılış', 'Yüksek', 'Düşük']:
+                        if col in first_row:
+                            logger.info(f"{col} değeri: {first_row[col]}, tipi: {type(first_row[col])}, içerik: {repr(first_row[col])}")
+                
+            except Exception as e:
+                logger.error(f"Dosya okuma hatası: {str(e)}")
+                default_storage.delete(file_path)
+                messages.error(request, f'Dosya okunamadı: {str(e)}')
+                if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
+                    return render(request, 'Tahmin/messages.html')
+                return redirect('import_macroeconomic_data')
+            
+            # Sütun isimlerini standardize et
+            column_mappings = {
+                'Tarih': 'date',
+                'tarih': 'date',
+                'Date': 'date',
+                'Şimdi': 'close',
+                'Kapanış': 'close',
+                'Close': 'close',
+                'Açılış': 'open',
+                'Open': 'open',
+                'Yüksek': 'high',
+                'High': 'high',
+                'Düşük': 'low',
+                'Low': 'low',
+                'Hac.': 'volume',
+                'Hacim': 'volume',
+                'Volume': 'volume',
+                'Vol.': 'volume',
+                'Fark %': 'change',
+                'Change %': 'change',
+                'Change': 'change'
+            }
+            
+            # Sütun isimlerini değiştir
+            original_columns = df.columns.tolist()
+            df = df.rename(columns=column_mappings)
+            new_columns = df.columns.tolist()
+            
+            logger.info(f"Orijinal sütunlar: {original_columns}")
+            logger.info(f"Yeni sütunlar: {new_columns}")
+            
+            # Gerekli sütunların varlığını kontrol et
+            required_columns = ['date', 'open', 'high', 'low', 'close']
+            missing_columns = [col for col in required_columns if col not in df.columns]
+            
+            if missing_columns:
+                logger.error(f"Eksik sütunlar: {missing_columns}")
+                default_storage.delete(file_path)
+                messages.error(request, f'Dosyada gerekli sütunlar eksik: {", ".join(missing_columns)}')
+                if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
+                    return render(request, 'Tahmin/messages.html')
+                return redirect('import_macroeconomic_data')
+            
+            # Tarih formatını düzelt
+            try:
+                df['date'] = pd.to_datetime(df['date'], dayfirst=True)
+                logger.info(f"Tarih örnekleri: {df['date'].head().tolist()}")
+            except Exception as e:
+                logger.error(f"Tarih dönüştürme hatası: {str(e)}")
+                default_storage.delete(file_path)
+                messages.error(request, f'Tarih formatı tanımlanamadı: {str(e)}')
+                if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
+                    return render(request, 'Tahmin/messages.html')
+                return redirect('import_macroeconomic_data')
+            
+            # Verileri veritabanına kaydet
+            success_count = 0
+            error_count = 0
+            error_details = []
+            duplicate_count = 0
+            updated_count = 0
+            
+            # İlk birkaç satırı logla
+            logger.info(f"İlk 3 satır: {df.head(3).to_dict('records')}")
+            
+            try:
+                for _, row in df.iterrows():
+                    try:
+                        # Tarih ve döviz kuru için kontrol et
+                        date_value = row['date'].date()
+                        
+                        # Değişim yüzdesini düzelt (% işareti varsa kaldır)
+                        change_percent = None
+                        if 'change' in row and not pd.isna(row['change']):
+                            change_str = str(row['change']).replace('%', '').replace(',', '.')
+                            try:
+                                change_percent = float(change_str)
+                            except:
+                                change_percent = None
+                        
+                        # Veritabanında zaten var mı kontrol et
+                        try:
+                            existing_rate = ExchangeRate.objects.get(date=date_value, currency=currency_type)
+                            # Mevcut kaydı güncelle
+                            try:
+                                # Sayısal değerlere dönüştürme
+                                open_value = float(str(row['open']).replace(',', '.'))
+                                high_value = float(str(row['high']).replace(',', '.'))
+                                low_value = float(str(row['low']).replace(',', '.'))
+                                close_value = float(str(row['close']).replace(',', '.'))
+                                
+                                existing_rate.open_price = open_value
+                                existing_rate.high_price = high_value
+                                existing_rate.low_price = low_value
+                                existing_rate.close_price = close_value
+                                
+                                if 'volume' in row and not pd.isna(row['volume']):
+                                    existing_rate.volume = str(row['volume'])
+                                if change_percent is not None:
+                                    existing_rate.change_percent = change_percent
+                                
+                                existing_rate.save()
+                                updated_count += 1
+                                logger.info(f"Kayıt güncellendi: {currency_type} - {date_value}")
+                            except Exception as convert_err:
+                                logger.error(f"Değer dönüştürme hatası (güncelleme): {str(convert_err)}")
+                                logger.error(f"Problematik değerler: open={row['open']}, high={row['high']}, low={row['low']}, close={row['close']}")
+                                error_count += 1
+                                
+                        except ExchangeRate.DoesNotExist:
+                            # Yeni kayıt oluştur
+                            try:
+                                # Sayısal değerlere dönüştürme
+                                open_value = float(str(row['open']).replace(',', '.'))
+                                high_value = float(str(row['high']).replace(',', '.'))
+                                low_value = float(str(row['low']).replace(',', '.'))
+                                close_value = float(str(row['close']).replace(',', '.'))
+                                
+                                new_rate = ExchangeRate(
+                                    date=date_value,
+                                    currency=currency_type,
+                                    open_price=open_value,
+                                    high_price=high_value,
+                                    low_price=low_value,
+                                    close_price=close_value,
+                                    volume=str(row['volume']) if 'volume' in row and not pd.isna(row['volume']) else None,
+                                    change_percent=change_percent
+                                )
+                                new_rate.save()
+                                success_count += 1
+                                logger.info(f"Yeni kayıt eklendi: {currency_type} - {date_value}")
+                            except Exception as convert_err:
+                                logger.error(f"Değer dönüştürme hatası (yeni): {str(convert_err)}")
+                                logger.error(f"Problematik değerler: open={row['open']}, high={row['high']}, low={row['low']}, close={row['close']}")
+                                error_count += 1
+                            
+                    except Exception as e:
+                        error_count += 1
+                        error_msg = f"Satır {_ + 2}: {str(e)}"
+                        error_details.append(error_msg)
+                        logger.error(error_msg)
+            except Exception as e:
+                logger.error(f"Tüm verileri kaydetme hatası: {str(e)}")
+            
+            # Kayıt özeti
+            logger.info(f"Kayıt özeti: {success_count} yeni, {updated_count} güncelleme, {error_count} hata")
+            
+            # Geçici dosyayı sil
+            default_storage.delete(file_path)
+            
+            # Sonucu bildir
+            status_message = f'{currency_type}/TRY döviz kuru verileri: '
+            if success_count > 0:
+                status_message += f'{success_count} yeni kayıt eklendi. '
+            if updated_count > 0:
+                status_message += f'{updated_count} kayıt güncellendi. '
+            if error_count > 0:
+                status_message += f'{error_count} işleme hatası. '
+            
+            messages.success(request, status_message)
+            
+            # Hata ayrıntılarını göster
+            if error_count > 0:
+                for error in error_details[:5]:
+                    messages.error(request, error)
+                if error_count > 5:
+                    messages.error(request, f'... ve {error_count - 5} hata daha.')
+            
+            if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
+                return render(request, 'Tahmin/messages.html')
+            return redirect('import_macroeconomic_data')
+            
+        except Exception as e:
+            messages.error(request, f'Döviz kuru verileri işlenirken bir hata oluştu: {str(e)}')
+            if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
+                return render(request, 'Tahmin/messages.html')
+            return redirect('import_macroeconomic_data')
+    
     context = {
         'title': 'Makroekonomik Verileri İçe Aktar'
     }
@@ -1692,3 +2231,541 @@ def delete_inflation_data(request, data_id):
         'title': 'Enflasyon Verisi Sil'
     }
     return render(request, 'Tahmin/delete_inflation_data.html', context)
+
+@login_required
+@user_passes_test(is_staff_user)
+def import_company_financial(request):
+    """
+    Şirket finansal verilerini çeşitli dosya formatlarından (ZIP, PDF, XLS, XLSX) yükleme sayfası ve işlemleri
+    """
+    # Sistemdeki hisseleri getir
+    stocks = Stock.objects.filter(is_active=True).order_by('symbol')
+    
+    # Yıllar için hazır bir liste (opsiyonel olarak veritabanından dinamik de getirilebilir)
+    current_year = datetime.now().year
+    years = list(range(current_year, current_year-5, -1))
+    
+    context = {
+        'stocks': stocks,
+        'years': years,
+    }
+    
+    if request.method == 'POST':
+        # Form verilerini al
+        stock_id = request.POST.get('stock_id')
+        year = request.POST.get('year')
+        period = request.POST.get('period')
+        uploaded_file = request.FILES.get('data_file')
+        analyze_data = request.POST.get('analyze_data') == 'on'
+        
+        # Gerekli alanların kontrolünü yap
+        if not stock_id or not year or not period or not uploaded_file:
+            messages.error(request, 'Lütfen tüm alanları doldurun ve bir dosya yükleyin.')
+            return render(request, 'Tahmin/import_company_financial.html', context)
+        
+        # Hisseyi kontrol et
+        try:
+            stock = Stock.objects.get(id=stock_id)
+        except Stock.DoesNotExist:
+            messages.error(request, 'Seçilen hisse bulunamadı.')
+            return render(request, 'Tahmin/import_company_financial.html', context)
+        
+        # Dosya tipini kontrol et ve işle
+        file_extension = uploaded_file.name.split('.')[-1].lower()
+        if file_extension not in ['zip', 'pdf', 'xls', 'xlsx']:
+            messages.error(request, 'Lütfen sadece ZIP, PDF, XLS veya XLSX dosyası yükleyin.')
+            return render(request, 'Tahmin/import_company_financial.html', context)
+        
+        # Dosyayı işle ve finansal verileri çıkar
+        try:
+            # Klasör yapısını oluştur
+            base_dir = os.path.join(settings.MEDIA_ROOT, 'financials', stock.symbol, year, period)
+            os.makedirs(base_dir, exist_ok=True)
+            
+            # İşlenecek dosyaları tutacak liste
+            files_to_process = []
+            
+            # ZIP dosyası ise içeriğini çıkar
+            if file_extension == 'zip':
+                timestamp = datetime.now().strftime("%Y%m%d%H%M%S")
+                zip_path = os.path.join(base_dir, f"archive_{timestamp}.zip")
+                
+                # ZIP dosyasını kaydet
+                with open(zip_path, 'wb+') as destination:
+                    for chunk in uploaded_file.chunks():
+                        destination.write(chunk)
+                
+                # Geçici dizin oluştur
+                extract_dir = os.path.join(base_dir, f"extracted_{timestamp}")
+                os.makedirs(extract_dir, exist_ok=True)
+                
+                # ZIP dosyasını aç ve içeriği geçici dizine çıkar
+                with zipfile.ZipFile(zip_path, 'r') as zip_ref:
+                    zip_ref.extractall(extract_dir)
+                
+                # Çıkarılan dosyaları tara
+                for root, _, files in os.walk(extract_dir):
+                    for file in files:
+                        file_ext = file.split('.')[-1].lower()
+                        if file_ext in ['pdf', 'xls', 'xlsx']:
+                            file_path = os.path.join(root, file)
+                            files_to_process.append({
+                                'path': file_path,
+                                'type': file_ext,
+                                'name': file
+                            })
+                
+                messages.info(request, f"ZIP arşivinden {len(files_to_process)} dosya çıkarıldı.")
+            else:
+                # Tek dosya
+                timestamp = datetime.now().strftime("%Y%m%d%H%M%S")
+                file_path = os.path.join(base_dir, f"{file_extension}_{timestamp}.{file_extension}")
+                
+                # Dosyayı kaydet
+                with open(file_path, 'wb+') as destination:
+                    for chunk in uploaded_file.chunks():
+                        destination.write(chunk)
+                
+                files_to_process.append({
+                    'path': file_path,
+                    'type': file_extension,
+                    'name': uploaded_file.name
+                })
+            
+            # Çıkarılan finansal verileri saklayacak konteyner
+            financial_data = {
+                'revenue': None,
+                'ebitda': None,
+                'net_income': None,
+                'total_assets': None,
+                'total_liabilities': None,
+                'equity': None,
+                'debt_to_equity': None,
+                'roe': None,
+                'eps': None,
+                'dividend': None,
+                'dividend_yield': None,
+                'pe_ratio': None,
+                'pb_ratio': None,
+                'ev_ebitda': None,
+            }
+            
+            # Her dosyayı işle
+            for file_info in files_to_process:
+                extracted_data = {}
+                file_path = file_info['path']
+                file_type = file_info['type']
+                
+                try:
+                    if file_type == 'pdf':
+                        # PDF dosyasını işle ve veri çıkar
+                        extracted_data = extract_data_from_pdf(file_path)
+                    elif file_type in ['xls', 'xlsx']:
+                        # Excel dosyasını işle ve veri çıkar
+                        extracted_data = extract_data_from_excel(file_path)
+                    
+                    # Çıkarılan verileri birleştir (None olmayanları al)
+                    for key, value in extracted_data.items():
+                        if value is not None and key in financial_data:
+                            financial_data[key] = value
+                except Exception as e:
+                    messages.warning(request, f"{file_info['name']} dosyasından veri çıkarımı sırasında hata: {str(e)}")
+            
+            # Mevcut kaydı kontrol et ve güncelle ya da yeni oluştur
+            financial, created = CompanyFinancial.objects.update_or_create(
+                stock=stock,
+                year=year,
+                period=period,
+                defaults={
+                    'revenue': financial_data['revenue'] if financial_data['revenue'] is not None else 0,
+                    'ebitda': financial_data['ebitda'] if financial_data['ebitda'] is not None else 0,
+                    'net_income': financial_data['net_income'] if financial_data['net_income'] is not None else 0,
+                    'total_assets': financial_data['total_assets'] if financial_data['total_assets'] is not None else 0,
+                    'total_liabilities': financial_data['total_liabilities'] if financial_data['total_liabilities'] is not None else 0,
+                    'equity': financial_data['equity'] if financial_data['equity'] is not None else 0,
+                    'debt_to_equity': financial_data['debt_to_equity'] if financial_data['debt_to_equity'] is not None else None,
+                    'roe': financial_data['roe'] if financial_data['roe'] is not None else None,
+                    'eps': financial_data['eps'] if financial_data['eps'] is not None else None,
+                    'dividend': financial_data['dividend'] if financial_data['dividend'] is not None else None,
+                    'dividend_yield': financial_data['dividend_yield'] if financial_data['dividend_yield'] is not None else None,
+                    'pe_ratio': financial_data['pe_ratio'] if financial_data['pe_ratio'] is not None else None,
+                    'pb_ratio': financial_data['pb_ratio'] if financial_data['pb_ratio'] is not None else None,
+                    'ev_ebitda': financial_data['ev_ebitda'] if financial_data['ev_ebitda'] is not None else None,
+                }
+            )
+            
+            # Başarılı mesajı göster
+            action = "oluşturuldu" if created else "güncellendi"
+            messages.success(request, f"{stock.symbol} hissesi için {year} {period} dönemi finansal verisi başarıyla {action}.")
+            
+            # Eğer analiz isteniyorsa finansal analizleri yap
+            if analyze_data:
+                try:
+                    analysis_results = analyze_financial_data(financial)
+                    # Analiz sonuçlarını göster
+                    messages.info(request, f"Finansal analiz tamamlandı. Analiz sonuçlarını raporlardan görüntüleyebilirsiniz.")
+                except Exception as e:
+                    messages.warning(request, f"Finansal analiz sırasında hata oluştu: {str(e)}")
+            
+            # İşlem tamamlandı, detay sayfasına yönlendir
+            return redirect('company_financial_detail', financial_id=financial.id)
+            
+        except Exception as e:
+            # Hata durumunda
+            messages.error(request, f"Dosya işlenirken bir hata oluştu: {str(e)}")
+            return render(request, 'Tahmin/import_company_financial.html', context)
+    
+    # GET isteği için sayfayı göster
+    return render(request, 'Tahmin/import_company_financial.html', context)
+
+def extract_data_from_pdf(file_path):
+    """
+    PDF dosyasından finansal verileri çıkarır.
+    """
+    extracted_data = {}
+    
+    try:
+        # PyPDF2 ile PDF'i aç
+        with open(file_path, 'rb') as file:
+            pdf_reader = PyPDF2.PdfReader(file)
+            text = ""
+            
+            # Tüm sayfaları metin olarak çıkar
+            for page_num in range(len(pdf_reader.pages)):
+                page = pdf_reader.pages[page_num]
+                text += page.extract_text()
+        
+        # Finansal verileri metin içinden regexler ile çıkar
+        
+        # Gelir Tablosu Verileri
+        revenue_match = re.search(r'(Hasılat|Satış Gelirleri|Net Satışlar)[:\s]*([0-9.,]+)', text)
+        if revenue_match:
+            extracted_data['revenue'] = convert_to_number(revenue_match.group(2))
+        
+        ebitda_match = re.search(r'(FAVÖK|EBITDA)[:\s]*([0-9.,]+)', text)
+        if ebitda_match:
+            extracted_data['ebitda'] = convert_to_number(ebitda_match.group(2))
+        
+        net_income_match = re.search(r'(Net Kar|Net Dönem Karı|Dönem Net Karı)[:\s]*([0-9.,]+)', text)
+        if net_income_match:
+            extracted_data['net_income'] = convert_to_number(net_income_match.group(2))
+        
+        # Bilanço Verileri
+        total_assets_match = re.search(r'(Toplam Varlıklar|Aktif Toplam)[:\s]*([0-9.,]+)', text)
+        if total_assets_match:
+            extracted_data['total_assets'] = convert_to_number(total_assets_match.group(2))
+        
+        total_liabilities_match = re.search(r'(Toplam Yükümlülükler|Toplam Borçlar)[:\s]*([0-9.,]+)', text)
+        if total_liabilities_match:
+            extracted_data['total_liabilities'] = convert_to_number(total_liabilities_match.group(2))
+        
+        equity_match = re.search(r'(Özkaynaklar|Toplam Özkaynaklar)[:\s]*([0-9.,]+)', text)
+        if equity_match:
+            extracted_data['equity'] = convert_to_number(equity_match.group(2))
+        
+        # Oranlar
+        eps_match = re.search(r'(Hisse Başına Kazanç|Pay Başına Kazanç)[:\s]*([0-9.,]+)', text)
+        if eps_match:
+            extracted_data['eps'] = convert_to_number(eps_match.group(2))
+        
+        pe_match = re.search(r'(F/K|Fiyat/Kazanç)[:\s]*([0-9.,]+)', text)
+        if pe_match:
+            extracted_data['pe_ratio'] = convert_to_number(pe_match.group(2))
+        
+        # Eğer bilanço verileri varsa, oranları hesapla
+        if 'total_liabilities' in extracted_data and 'equity' in extracted_data and extracted_data['equity'] > 0:
+            extracted_data['debt_to_equity'] = round(extracted_data['total_liabilities'] / extracted_data['equity'], 2)
+        
+        if 'net_income' in extracted_data and 'equity' in extracted_data and extracted_data['equity'] > 0:
+            extracted_data['roe'] = round((extracted_data['net_income'] / extracted_data['equity']) * 100, 2)
+        
+        return extracted_data
+        
+    except Exception as e:
+        print(f"PDF veri çıkarma hatası: {str(e)}")
+        return {}
+
+def extract_data_from_excel(file_path):
+    """
+    Excel dosyasından finansal verileri çıkarır.
+    """
+    extracted_data = {}
+    
+    try:
+        # Pandas ile Excel'i oku
+        df = pd.read_excel(file_path)
+        
+        # Sütun başlıklarını kontrol et 
+        columns = df.columns.str.lower()
+        
+        # Gelir Tablosu Verileri
+        if any(col for col in columns if 'hasılat' in col or 'satış' in col):
+            revenue_col = next((col for col in columns if 'hasılat' in col or 'satış' in col), None)
+            if revenue_col:
+                revenue_value = df[df.columns[columns.get_loc(revenue_col)]].iloc[0]
+                if not pd.isna(revenue_value):
+                    extracted_data['revenue'] = convert_to_number(revenue_value)
+        
+        if any(col for col in columns if 'favök' in col or 'ebitda' in col):
+            ebitda_col = next((col for col in columns if 'favök' in col or 'ebitda' in col), None)
+            if ebitda_col:
+                ebitda_value = df[df.columns[columns.get_loc(ebitda_col)]].iloc[0]
+                if not pd.isna(ebitda_value):
+                    extracted_data['ebitda'] = convert_to_number(ebitda_value)
+        
+        if any(col for col in columns if 'net kar' in col or 'dönem kar' in col):
+            net_income_col = next((col for col in columns if 'net kar' in col or 'dönem kar' in col), None)
+            if net_income_col:
+                net_income_value = df[df.columns[columns.get_loc(net_income_col)]].iloc[0]
+                if not pd.isna(net_income_value):
+                    extracted_data['net_income'] = convert_to_number(net_income_value)
+        
+        # Bilanço Verileri
+        if any(col for col in columns if 'varlık' in col or 'aktif' in col):
+            assets_col = next((col for col in columns if 'varlık' in col or 'aktif' in col), None)
+            if assets_col:
+                assets_value = df[df.columns[columns.get_loc(assets_col)]].iloc[0]
+                if not pd.isna(assets_value):
+                    extracted_data['total_assets'] = convert_to_number(assets_value)
+        
+        if any(col for col in columns if 'yükümlülük' in col or 'borç' in col):
+            liabilities_col = next((col for col in columns if 'yükümlülük' in col or 'borç' in col), None)
+            if liabilities_col:
+                liabilities_value = df[df.columns[columns.get_loc(liabilities_col)]].iloc[0]
+                if not pd.isna(liabilities_value):
+                    extracted_data['total_liabilities'] = convert_to_number(liabilities_value)
+        
+        if any(col for col in columns if 'özkaynak' in col):
+            equity_col = next((col for col in columns if 'özkaynak' in col), None)
+            if equity_col:
+                equity_value = df[df.columns[columns.get_loc(equity_col)]].iloc[0]
+                if not pd.isna(equity_value):
+                    extracted_data['equity'] = convert_to_number(equity_value)
+        
+        # Oranlar
+        if any(col for col in columns if 'f/k' in col or 'fiyat/kazanç' in col):
+            pe_col = next((col for col in columns if 'f/k' in col or 'fiyat/kazanç' in col), None)
+            if pe_col:
+                pe_value = df[df.columns[columns.get_loc(pe_col)]].iloc[0]
+                if not pd.isna(pe_value):
+                    extracted_data['pe_ratio'] = convert_to_number(pe_value)
+        
+        if any(col for col in columns if 'pd/dd' in col or 'piyasa değeri/defter değeri' in col):
+            pb_col = next((col for col in columns if 'pd/dd' in col or 'piyasa değeri/defter değeri' in col), None)
+            if pb_col:
+                pb_value = df[df.columns[columns.get_loc(pb_col)]].iloc[0]
+                if not pd.isna(pb_value):
+                    extracted_data['pb_ratio'] = convert_to_number(pb_value)
+        
+        if any(col for col in columns if 'fd/favök' in col or 'firma değeri/favök' in col):
+            ev_ebitda_col = next((col for col in columns if 'fd/favök' in col or 'firma değeri/favök' in col), None)
+            if ev_ebitda_col:
+                ev_ebitda_value = df[df.columns[columns.get_loc(ev_ebitda_col)]].iloc[0]
+                if not pd.isna(ev_ebitda_value):
+                    extracted_data['ev_ebitda'] = convert_to_number(ev_ebitda_value)
+        
+        # Eğer bilanço verileri varsa, oranları hesapla
+        if 'total_liabilities' in extracted_data and 'equity' in extracted_data and extracted_data['equity'] > 0:
+            extracted_data['debt_to_equity'] = round(extracted_data['total_liabilities'] / extracted_data['equity'], 2)
+        
+        if 'net_income' in extracted_data and 'equity' in extracted_data and extracted_data['equity'] > 0:
+            extracted_data['roe'] = round((extracted_data['net_income'] / extracted_data['equity']) * 100, 2)
+        
+        return extracted_data
+        
+    except Exception as e:
+        print(f"Excel veri çıkarma hatası: {str(e)}")
+        return {}
+
+def convert_to_number(value):
+    """
+    Metinsel değeri sayıya dönüştürür.
+    """
+    if isinstance(value, (int, float)):
+        return value
+    
+    if isinstance(value, str):
+        # Binlik ayırıcı ve ondalık noktasını temizle
+        cleaned_value = re.sub(r'[^\d,.]', '', value)
+        
+        # Türkçe formatta virgül ondalık ayırıcı ise nokta ile değiştir
+        if ',' in cleaned_value and '.' not in cleaned_value:
+            cleaned_value = cleaned_value.replace(',', '.')
+        # Binlik ayırıcı olarak nokta, ondalık ayırıcı olarak virgül kullanılıyorsa
+        elif ',' in cleaned_value and '.' in cleaned_value:
+            cleaned_value = cleaned_value.replace('.', '').replace(',', '.')
+        
+        try:
+            return float(cleaned_value)
+        except ValueError:
+            return 0
+    
+    return 0
+
+def analyze_financial_data(financial):
+    """
+    Finansal verileri analiz eder ve çeşitli finansal oranları hesaplar.
+    """
+    analysis_results = {}
+    
+    try:
+        # Temel Oranlar
+        if financial.net_income and financial.revenue and financial.revenue > 0:
+            analysis_results['net_profit_margin'] = round((financial.net_income / financial.revenue) * 100, 2)
+        
+        if financial.ebitda and financial.revenue and financial.revenue > 0:
+            analysis_results['ebitda_margin'] = round((financial.ebitda / financial.revenue) * 100, 2)
+        
+        # Trend Analizi için önceki dönem verisini getir
+        previous_period = None
+        current_period = financial.period
+        current_year = financial.year
+        
+        if current_period == 'Q1':
+            # Önceki yıl Q4
+            previous_period = CompanyFinancial.objects.filter(
+                stock=financial.stock,
+                year=current_year-1,
+                period='Q4'
+            ).first()
+        elif current_period == 'Q2':
+            # Aynı yıl Q1
+            previous_period = CompanyFinancial.objects.filter(
+                stock=financial.stock,
+                year=current_year,
+                period='Q1'
+            ).first()
+        elif current_period == 'Q3':
+            # Aynı yıl Q2
+            previous_period = CompanyFinancial.objects.filter(
+                stock=financial.stock,
+                year=current_year,
+                period='Q2'
+            ).first()
+        elif current_period == 'Q4':
+            # Aynı yıl Q3
+            previous_period = CompanyFinancial.objects.filter(
+                stock=financial.stock,
+                year=current_year,
+                period='Q3'
+            ).first()
+        elif current_period == 'ANNUAL':
+            # Önceki yıl ANNUAL
+            previous_period = CompanyFinancial.objects.filter(
+                stock=financial.stock,
+                year=current_year-1,
+                period='ANNUAL'
+            ).first()
+        
+        # Büyüme oranları
+        if previous_period:
+            if financial.revenue and previous_period.revenue and previous_period.revenue > 0:
+                analysis_results['revenue_growth'] = round(((financial.revenue - previous_period.revenue) / previous_period.revenue) * 100, 2)
+            
+            if financial.net_income and previous_period.net_income and previous_period.net_income > 0:
+                analysis_results['net_income_growth'] = round(((financial.net_income - previous_period.net_income) / previous_period.net_income) * 100, 2)
+            
+            if financial.ebitda and previous_period.ebitda and previous_period.ebitda > 0:
+                analysis_results['ebitda_growth'] = round(((financial.ebitda - previous_period.ebitda) / previous_period.ebitda) * 100, 2)
+        
+        # Değerleme ölçütleri açıklamaları
+        if financial.pe_ratio:
+            if financial.pe_ratio < 10:
+                analysis_results['pe_ratio_comment'] = "Düşük F/K oranı (potansiyel olarak değerli)"
+            elif financial.pe_ratio > 20:
+                analysis_results['pe_ratio_comment'] = "Yüksek F/K oranı (potansiyel olarak pahalı)"
+            else:
+                analysis_results['pe_ratio_comment'] = "Orta düzey F/K oranı"
+        
+        if financial.debt_to_equity:
+            if financial.debt_to_equity < 0.5:
+                analysis_results['debt_to_equity_comment'] = "Düşük borç/özsermaye oranı (güçlü finansal yapı)"
+            elif financial.debt_to_equity > 1.5:
+                analysis_results['debt_to_equity_comment'] = "Yüksek borç/özsermaye oranı (riskli finansal yapı)"
+            else:
+                analysis_results['debt_to_equity_comment'] = "Orta düzey borç/özsermaye oranı"
+        
+        # Analiz sonuçlarını JSON olarak sakla
+        financial.extra_data = json.dumps(analysis_results)
+        financial.save()
+        
+        return analysis_results
+        
+    except Exception as e:
+        print(f"Finansal analiz hatası: {str(e)}")
+        return {}
+
+@login_required
+@user_passes_test(is_staff_user)
+def company_financial_detail(request, financial_id):
+    """
+    Şirket finansal verisi detay sayfası ve analiz sonuçları
+    """
+    # Finansal veriyi getir
+    financial = get_object_or_404(CompanyFinancial, id=financial_id)
+    
+    # JSON formatındaki extra_data alanını Python sözlüğüne dönüştür
+    extra_data = {}
+    if financial.extra_data:
+        try:
+            extra_data = json.loads(financial.extra_data)
+        except json.JSONDecodeError:
+            messages.warning(request, "Finansal analiz verisi okunamadı.")
+    
+    context = {
+        'financial': financial,
+        'extra_data': extra_data
+    }
+    
+    return render(request, 'Tahmin/company_financial_detail.html', context)
+
+@login_required
+@user_passes_test(is_staff_user)
+def financial_list(request):
+    """
+    Şirket finansal verilerinin listesini gösteren view
+    """
+    # Filtreleme parametrelerini al
+    stock_id = request.GET.get('stock', '')
+    year = request.GET.get('year', '')
+    period = request.GET.get('period', '')
+    
+    # Temel sorgu
+    financials = CompanyFinancial.objects.all().order_by('-year', '-period', 'stock__symbol')
+    
+    # Filtreleme
+    if stock_id:
+        financials = financials.filter(stock_id=stock_id)
+    if year:
+        financials = financials.filter(year=year)
+    if period:
+        financials = financials.filter(period=period)
+    
+    # Sayfalama
+    paginator = Paginator(financials, 20)  # Sayfa başına 20 kayıt
+    page = request.GET.get('page')
+    
+    try:
+        financials = paginator.page(page)
+    except PageNotAnInteger:
+        # Sayfa bir tamsayı değilse, ilk sayfayı göster
+        financials = paginator.page(1)
+    except EmptyPage:
+        # Sayfa sayısı çok yüksekse, son sayfayı göster
+        financials = paginator.page(paginator.num_pages)
+    
+    # Filtreler için listeleri hazırla
+    stocks = Stock.objects.filter(is_active=True).order_by('symbol')
+    current_year = datetime.now().year
+    years = list(range(current_year, current_year-5, -1))
+    
+    context = {
+        'financials': financials,
+        'stocks': stocks,
+        'years': years,
+        'selected_stock': stock_id,
+        'selected_year': year,
+        'selected_period': period,
+    }
+    
+    return render(request, 'Tahmin/financial_list.html', context)

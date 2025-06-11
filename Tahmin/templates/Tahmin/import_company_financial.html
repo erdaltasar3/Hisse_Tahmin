@@ -14,14 +14,17 @@
             <div class="ml-3">
                 <h3 class="text-lg font-medium text-indigo-800">Şirket Finansal Veri Dosyası</h3>
                 <div class="mt-2 text-indigo-700">
-                    <p>Bu sayfadan şirketlerin finansal verilerini içeren Excel (.xlsx) dosyası yükleyebilirsiniz.</p>
-                    <p class="mt-2">Bu veriler aşağıdakileri içerebilir:</p>
+                    <p>Bu sayfadan şirketlerin finansal verilerini içeren dosyaları yükleyebilirsiniz:</p>
                     <ul class="list-disc pl-5 mt-2 space-y-1">
-                        <li>Üç aylık ve yıllık finansal raporlar</li>
+                        <li><strong>ZIP dosyası:</strong> İçinde XLS ve PDF dosyaları bulunan sıkıştırılmış arşiv</li>
+                        <li><strong>PDF dosyası:</strong> KAP'tan indirilen finansal rapor</li>
+                        <li><strong>XLS/XLSX dosyası:</strong> Finansal verileri içeren Excel dosyası</li>
+                    </ul>
+                    <p class="mt-2">Yükleme sonrası sistem dosyalardaki şu verileri analiz edecektir:</p>
+                    <ul class="list-disc pl-5 mt-2 space-y-1">
                         <li>Satış gelirleri, EBITDA, net kar verileri</li>
                         <li>Bilanço verileri (özellikle borç/özsermaye oranı)</li>
-                        <li>Temettü verileri ve politikaları</li>
-                        <li>Piyasa çarpanları (F/K, PD/DD, FD/FAVÖK)</li>
+                        <li>Değerleme çarpanları (F/K, PD/DD, FD/FAVÖK)</li>
                     </ul>
                 </div>
             </div>
@@ -29,36 +32,57 @@
     </div>
 
     <div class="mb-8">
-        <div class="bg-blue-50 p-4 rounded-lg border border-blue-200 mb-6">
-            <div class="flex items-start">
-                <div class="flex-shrink-0">
-                    <svg class="h-5 w-5 text-blue-600" fill="currentColor" viewBox="0 0 20 20">
-                        <path fill-rule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a1 1 0 000 2v3a1 1 0 001 1h1a1 1 0 100-2h-1V9z" clip-rule="evenodd"></path>
-                    </svg>
-                </div>
-                <div class="ml-3">
-                    <h3 class="text-sm font-medium text-blue-800">Dosya Yükleme Formatı</h3>
-                    <div class="mt-2 text-sm text-blue-700">
-                        <p>Lütfen aşağıdaki formatta bir Excel dosyası (.xlsx) hazırlayın:</p>
-                        <ul class="list-disc pl-5 mt-2 space-y-1">
-                            <li>Sütun başlıkları: <code class="px-2 py-1 bg-blue-100 rounded">hisse_sembol</code>, <code class="px-2 py-1 bg-blue-100 rounded">donem</code>, <code class="px-2 py-1 bg-blue-100 rounded">yil</code>, <code class="px-2 py-1 bg-blue-100 rounded">satis_geliri</code>, <code class="px-2 py-1 bg-blue-100 rounded">favok</code>, <code class="px-2 py-1 bg-blue-100 rounded">net_kar</code>, <code class="px-2 py-1 bg-blue-100 rounded">toplam_varliklar</code>, <code class="px-2 py-1 bg-blue-100 rounded">toplam_borclar</code>, <code class="px-2 py-1 bg-blue-100 rounded">ozkaynaklar</code>, <code class="px-2 py-1 bg-blue-100 rounded">borc_ozsermaye</code>, <code class="px-2 py-1 bg-blue-100 rounded">roe</code>, <code class="px-2 py-1 bg-blue-100 rounded">hisse_basi_kazanc</code>, <code class="px-2 py-1 bg-blue-100 rounded">temettü</code>, <code class="px-2 py-1 bg-blue-100 rounded">temettü_verimi</code>, <code class="px-2 py-1 bg-blue-100 rounded">fk_orani</code>, <code class="px-2 py-1 bg-blue-100 rounded">pd_dd</code>, <code class="px-2 py-1 bg-blue-100 rounded">fd_favok</code></li>
-                            <li>Hisse sembolü zorunludur ve sistemde kayıtlı hisse sembollerinden biri olmalıdır</li>
-                            <li>Dönem ('Q1', 'Q2', 'Q3', 'Q4', 'ANNUAL') ve yıl zorunludur</li>
-                            <li>Ondalık ayırıcı olarak nokta (.) kullanılmalıdır (Örn: 3.45)</li>
-                        </ul>
-                    </div>
-                </div>
-            </div>
-        </div>
-
         <div class="bg-white p-6 rounded-lg border border-gray-200 shadow-sm">
             <h2 class="text-lg font-medium text-gray-900 mb-4">Dosya Yükleme</h2>
             
-            <form action="#" method="post" enctype="multipart/form-data" class="space-y-6">
+            <form action="#" method="post" enctype="multipart/form-data" class="space-y-6" id="financialDataForm">
                 {% csrf_token %}
                 
+                <!-- Hisse Seçimi -->
+                <div class="mb-4">
+                    <label for="stock_select" class="block text-sm font-medium text-gray-700 mb-2">Hisse Seçimi</label>
+                    <select id="stock_select" name="stock_id" class="w-full px-3 py-2 border rounded-lg text-gray-700 focus:outline-none focus:border-blue-500" required>
+                        <option value="">Hisse seçiniz</option>
+                        {% for stock in stocks %}
+                        <option value="{{ stock.id }}">{{ stock.symbol }} - {{ stock.name }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+                
+                <!-- Yıl Seçimi -->
+                <div class="mb-4">
+                    <label for="year_select" class="block text-sm font-medium text-gray-700 mb-2">Yıl</label>
+                    <select id="year_select" name="year" class="w-full px-3 py-2 border rounded-lg text-gray-700 focus:outline-none focus:border-blue-500" required>
+                        <option value="">Yıl seçiniz</option>
+                        {% for year in years %}
+                        <option value="{{ year }}">{{ year }}</option>
+                        {% empty %}
+                        <!-- Statik yıllar (gerçekte dinamik olarak doldurulmalı) -->
+                        <option value="2024">2024</option>
+                        <option value="2023">2023</option>
+                        <option value="2022">2022</option>
+                        <option value="2021">2021</option>
+                        <option value="2020">2020</option>
+                        {% endfor %}
+                    </select>
+                </div>
+                
+                <!-- Dönem Seçimi -->
+                <div class="mb-4">
+                    <label for="period_select" class="block text-sm font-medium text-gray-700 mb-2">Dönem</label>
+                    <select id="period_select" name="period" class="w-full px-3 py-2 border rounded-lg text-gray-700 focus:outline-none focus:border-blue-500" required>
+                        <option value="">Dönem seçiniz</option>
+                        <option value="Q1">1. Çeyrek</option>
+                        <option value="Q2">2. Çeyrek</option>
+                        <option value="Q3">3. Çeyrek</option>
+                        <option value="Q4">4. Çeyrek</option>
+                        <option value="ANNUAL">Yıllık</option>
+                    </select>
+                </div>
+                
+                <!-- Dosya Yükleme -->
                 <div class="flex flex-col space-y-2">
-                    <label for="data_file" class="block text-sm font-medium text-gray-700">Excel Dosyası Seçin</label>
+                    <label for="data_file" class="block text-sm font-medium text-gray-700">Dosya Seçin</label>
                     <div class="flex items-center justify-center w-full">
                         <label class="flex flex-col rounded-lg border-2 border-dashed border-gray-300 w-full h-40 p-5 group hover:bg-gray-50 cursor-pointer">
                             <div class="h-full w-full text-center flex flex-col items-center justify-center">
@@ -66,12 +90,23 @@
                                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 13h6m-3-3v6m5 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path>
                                 </svg>
                                 <p class="text-gray-500 text-sm mt-2 pointer-events-none">Sürükleyip bırakın veya <span class="text-indigo-600 font-semibold">dosya seçin</span></p>
-                                <p class="text-xs text-gray-400 mt-1 pointer-events-none">Sadece .xlsx ve .xls dosyaları</p>
-                                <input type="file" name="data_file" id="data_file" accept=".xlsx, .xls" class="hidden" required />
+                                <p class="text-xs text-gray-400 mt-1 pointer-events-none">ZIP, PDF, XLS veya XLSX dosyaları</p>
+                                <input type="file" name="data_file" id="data_file" accept=".zip,.pdf,.xls,.xlsx" class="hidden" required />
                             </div>
                         </label>
                     </div>
                     <div class="text-sm text-gray-500 ml-1 mt-1 file-name"></div>
+                </div>
+
+                <!-- Analiz İsteniyor mu? -->
+                <div class="flex items-start mt-4">
+                    <div class="flex items-center h-5">
+                        <input id="analyze_data" name="analyze_data" type="checkbox" class="h-4 w-4 text-indigo-600 border-gray-300 rounded focus:ring-indigo-500" checked>
+                    </div>
+                    <div class="ml-3 text-sm">
+                        <label for="analyze_data" class="font-medium text-gray-700">Verileri analiz et</label>
+                        <p class="text-gray-500">Dosyalardan çıkarılan verileri analiz ederek finansal raporlar oluştur</p>
+                    </div>
                 </div>
 
                 <div class="flex justify-between items-center pt-4">
@@ -81,64 +116,77 @@
                         </svg>
                         Geri Dön
                     </a>
-                    <button type="submit" class="inline-flex justify-center py-2 px-6 border border-transparent shadow-sm text-sm font-medium rounded-md text-white bg-indigo-600 hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500">
+                    <button type="submit" id="submitBtn" class="inline-flex justify-center py-2 px-6 border border-transparent shadow-sm text-sm font-medium rounded-md text-white bg-indigo-600 hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500">
                         <svg class="w-5 h-5 mr-2 -ml-1" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
                             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0l-4 4m4-4v12"></path>
                         </svg>
-                        Dosyayı Yükle
+                        Dosyayı Yükle ve İşle
                     </button>
                 </div>
             </form>
         </div>
     </div>
+</div>
 
-    <div class="mt-6 bg-gray-50 p-5 rounded-lg border border-gray-200">
-        <h2 class="text-lg font-medium text-gray-900 mb-4">Örnek Dosya Formatı</h2>
-        <div class="overflow-x-auto">
-            <table class="min-w-full divide-y divide-gray-200">
-                <thead class="bg-gray-100">
-                    <tr>
-                        <th scope="col" class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">hisse_sembol</th>
-                        <th scope="col" class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">donem</th>
-                        <th scope="col" class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">yil</th>
-                        <th scope="col" class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">satis_geliri</th>
-                        <th scope="col" class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">favok</th>
-                        <th scope="col" class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">net_kar</th>
-                    </tr>
-                </thead>
-                <tbody class="bg-white divide-y divide-gray-200">
-                    <tr>
-                        <td class="px-4 py-3 whitespace-nowrap text-sm text-gray-500">GARAN</td>
-                        <td class="px-4 py-3 whitespace-nowrap text-sm text-gray-500">Q1</td>
-                        <td class="px-4 py-3 whitespace-nowrap text-sm text-gray-500">2023</td>
-                        <td class="px-4 py-3 whitespace-nowrap text-sm text-gray-500">42500000000</td>
-                        <td class="px-4 py-3 whitespace-nowrap text-sm text-gray-500">18750000000</td>
-                        <td class="px-4 py-3 whitespace-nowrap text-sm text-gray-500">12450000000</td>
-                    </tr>
-                    <tr>
-                        <td class="px-4 py-3 whitespace-nowrap text-sm text-gray-500">GARAN</td>
-                        <td class="px-4 py-3 whitespace-nowrap text-sm text-gray-500">Q2</td>
-                        <td class="px-4 py-3 whitespace-nowrap text-sm text-gray-500">2023</td>
-                        <td class="px-4 py-3 whitespace-nowrap text-sm text-gray-500">46800000000</td>
-                        <td class="px-4 py-3 whitespace-nowrap text-sm text-gray-500">20150000000</td>
-                        <td class="px-4 py-3 whitespace-nowrap text-sm text-gray-500">13750000000</td>
-                    </tr>
-                </tbody>
-            </table>
+<!-- Sonuç Popup Modal -->
+<div id="resultModal" class="fixed inset-0 bg-gray-600 bg-opacity-75 flex items-center justify-center z-50 hidden">
+    <div class="bg-white rounded-lg shadow-xl max-w-2xl w-full mx-4 overflow-hidden">
+        <div class="bg-indigo-600 px-6 py-3">
+            <div class="flex justify-between items-center">
+                <h3 class="text-lg font-medium text-white" id="modalTitle">İşlem Sonucu</h3>
+                <button id="closeModal" class="text-white hover:text-gray-200 focus:outline-none">
+                    <svg class="h-6 w-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
+                    </svg>
+                </button>
+            </div>
         </div>
-        <div class="mt-4 flex justify-center">
-            <a href="#" class="inline-flex items-center px-4 py-2 border border-gray-300 rounded-md shadow-sm text-sm font-medium text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500">
-                <svg class="mr-2 -ml-1 h-5 w-5 text-gray-500" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
-                </svg>
-                Örnek Şablon İndir
-            </a>
+        <div class="p-6">
+            <div id="modalContent" class="mb-5">
+                <!-- Burada işlem sonuçları yer alacak -->
+            </div>
+            
+            <div id="processingDetails" class="mb-5 bg-gray-50 p-4 rounded-lg border border-gray-200">
+                <h4 class="font-medium text-gray-800 mb-2">İşlem Detayları</h4>
+                <div id="detailsContent" class="text-sm">
+                    <!-- İşlem detayları buraya gelecek -->
+                </div>
+            </div>
+            
+            <div id="dataExtracted" class="mb-5">
+                <h4 class="font-medium text-gray-800 mb-2">Çıkarılan Veriler</h4>
+                <div class="overflow-x-auto">
+                    <table class="min-w-full divide-y divide-gray-200">
+                        <tbody class="bg-white divide-y divide-gray-200" id="extractedDataTable">
+                            <!-- Çıkarılan veriler buraya gelecek -->
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+            
+            <div class="flex justify-between pt-4 border-t border-gray-200">
+                <button id="goToList" class="inline-flex justify-center py-2 px-4 border border-gray-300 shadow-sm text-sm font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500">
+                    Veri Listesine Git
+                </button>
+                <button id="viewDetails" class="inline-flex justify-center py-2 px-4 border border-transparent shadow-sm text-sm font-medium rounded-md text-white bg-indigo-600 hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500">
+                    Detaylı Görüntüle
+                </button>
+            </div>
         </div>
+    </div>
+</div>
+
+<!-- Yükleme Spinner -->
+<div id="loadingOverlay" class="fixed inset-0 bg-gray-900 bg-opacity-50 flex items-center justify-center z-40 hidden">
+    <div class="bg-white p-5 rounded-lg shadow-xl text-center">
+        <div class="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-indigo-600 mx-auto"></div>
+        <p class="mt-3 text-gray-700">Dosya işleniyor ve veriler analiz ediliyor...</p>
     </div>
 </div>
 
 <script>
 document.addEventListener('DOMContentLoaded', function() {
+    // Dosya seçildiğinde ismi göster
     const fileInput = document.getElementById('data_file');
     const fileNameDisplay = document.querySelector('.file-name');
     
@@ -147,6 +195,251 @@ document.addEventListener('DOMContentLoaded', function() {
             fileNameDisplay.textContent = 'Seçilen dosya: ' + fileInput.files[0].name;
         } else {
             fileNameDisplay.textContent = '';
+        }
+    });
+    
+    // Form gönderildiğinde
+    const form = document.getElementById('financialDataForm');
+    const loadingOverlay = document.getElementById('loadingOverlay');
+    const resultModal = document.getElementById('resultModal');
+    const closeModalBtn = document.getElementById('closeModal');
+    const goToListBtn = document.getElementById('goToList');
+    const viewDetailsBtn = document.getElementById('viewDetails');
+    
+    let financialId = null; // İşlem sonucu oluşturulan finansal veri ID'si
+    
+    // AJAX ile form gönderimi
+    form.addEventListener('submit', function(e) {
+        e.preventDefault();
+        
+        // Yükleme ekranını göster
+        loadingOverlay.classList.remove('hidden');
+        
+        // Form verilerini al
+        const formData = new FormData(form);
+        
+        // AJAX isteği
+        fetch(form.action || window.location.href, {
+            method: 'POST',
+            body: formData,
+            headers: {
+                'X-Requested-With': 'XMLHttpRequest'
+            }
+        })
+        .then(response => {
+            // İstek başarıyla tamamlandı mı kontrolü
+            if (!response.ok) {
+                throw new Error('Sunucu hatası: ' + response.status);
+            }
+            
+            // URL yanıtını kontrol et (yönlendirme var mı?)
+            const redirectUrl = response.url;
+            
+            // Eğer yanıt bir JSON içeriyorsa
+            const contentType = response.headers.get('content-type');
+            if (contentType && contentType.includes('application/json')) {
+                return response.json().then(data => {
+                    return { type: 'json', data };
+                });
+            } else {
+                // HTML yanıtı
+                return response.text().then(text => {
+                    // Yönlendirme URL'sinden finansal veri ID'sini çıkar
+                    const idMatch = redirectUrl.match(/company-financial-detail\/(\d+)/);
+                    if (idMatch && idMatch[1]) {
+                        financialId = idMatch[1];
+                    }
+                    
+                    return { type: 'redirect', url: redirectUrl, text: text };
+                });
+            }
+        })
+        .then(result => {
+            // Yükleme ekranını gizle
+            loadingOverlay.classList.add('hidden');
+            
+            if (result.type === 'redirect' && financialId) {
+                // Başarılı işlem, detayları göster
+                showSuccessResult(financialId);
+            } else {
+                // Hata durumu veya beklenmeyen yanıt
+                showErrorResult('İşlem sırasında bir hata oluştu.');
+            }
+        })
+        .catch(error => {
+            // Yükleme ekranını gizle
+            loadingOverlay.classList.add('hidden');
+            
+            // Hata durumunu göster
+            showErrorResult('İşlem sırasında bir hata oluştu: ' + error.message);
+        });
+    });
+    
+    // Başarılı işlem sonucunu modalda göster
+    function showSuccessResult(id) {
+        // Detay bilgilerini almak için AJAX isteği
+        fetch(`/company-financial-detail/${id}/`)
+            .then(response => response.text())
+            .then(html => {
+                // HTML yanıtından gerekli bilgileri çıkar
+                const parser = new DOMParser();
+                const doc = parser.parseFromString(html, 'text/html');
+                
+                // Hisse ve dönem bilgilerini al
+                const stockName = doc.querySelector('.text-blue-800')?.textContent || 'Bilinmeyen Hisse';
+                const period = doc.querySelector('.text-lg.font-bold.text-blue-800:nth-child(2)')?.textContent || '';
+                const year = doc.querySelector('.text-lg.font-bold.text-blue-800:nth-child(4)')?.textContent || '';
+                
+                // Modal başlığını güncelle
+                document.getElementById('modalTitle').textContent = `${stockName} - ${period} ${year} İşlem Sonucu`;
+                
+                // Modal içeriğini güncelle
+                const modalContent = document.getElementById('modalContent');
+                modalContent.innerHTML = `
+                    <div class="flex items-center mb-3">
+                        <svg class="h-6 w-6 text-green-500 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path>
+                        </svg>
+                        <span class="text-lg font-medium text-gray-900">Veri yükleme işlemi başarıyla tamamlandı!</span>
+                    </div>
+                    <p class="text-gray-600">Finansal veriler başarıyla işlendi ve veri tabanına kaydedildi.</p>
+                `;
+                
+                // İşlem detaylarını güncelle
+                const detailsContent = document.getElementById('detailsContent');
+                detailsContent.innerHTML = `
+                    <ul class="space-y-1">
+                        <li><span class="font-medium">Durum:</span> <span class="text-green-600">Başarılı</span></li>
+                        <li><span class="font-medium">İşlem Türü:</span> Finansal Veri Yükleme</li>
+                        <li><span class="font-medium">Hisse:</span> ${stockName}</li>
+                        <li><span class="font-medium">Dönem:</span> ${period} ${year}</li>
+                        <li><span class="font-medium">İşlem Tarihi:</span> ${new Date().toLocaleString()}</li>
+                    </ul>
+                `;
+                
+                // Çıkarılan verileri tabloya ekle
+                const extractedDataTable = document.getElementById('extractedDataTable');
+                
+                // Finansal verileri HTML'den çıkar
+                const revenueValue = doc.querySelector('text-gray-900:contains("Satış Geliri")') || 'N/A';
+                const ebitdaValue = doc.querySelector('text-gray-900:contains("FAVÖK")') || 'N/A';
+                const netIncomeValue = doc.querySelector('text-gray-900:contains("Net Kar")') || 'N/A';
+                
+                // Bilanço verilerini HTML'den çıkar (burada demo olarak sabit değerler kullanıyoruz)
+                extractedDataTable.innerHTML = `
+                    <tr>
+                        <td class="px-3 py-2 whitespace-nowrap text-sm font-medium text-gray-800">Satış Geliri</td>
+                        <td class="px-3 py-2 whitespace-nowrap text-sm text-gray-600">${extractValue(doc, 'Satış Geliri')}</td>
+                    </tr>
+                    <tr>
+                        <td class="px-3 py-2 whitespace-nowrap text-sm font-medium text-gray-800">FAVÖK</td>
+                        <td class="px-3 py-2 whitespace-nowrap text-sm text-gray-600">${extractValue(doc, 'FAVÖK')}</td>
+                    </tr>
+                    <tr>
+                        <td class="px-3 py-2 whitespace-nowrap text-sm font-medium text-gray-800">Net Kar</td>
+                        <td class="px-3 py-2 whitespace-nowrap text-sm text-gray-600">${extractValue(doc, 'Net Kar')}</td>
+                    </tr>
+                    <tr>
+                        <td class="px-3 py-2 whitespace-nowrap text-sm font-medium text-gray-800">Borç/Özkaynak</td>
+                        <td class="px-3 py-2 whitespace-nowrap text-sm text-gray-600">${extractValue(doc, 'Borç/Özkaynak')}</td>
+                    </tr>
+                    <tr>
+                        <td class="px-3 py-2 whitespace-nowrap text-sm font-medium text-gray-800">F/K Oranı</td>
+                        <td class="px-3 py-2 whitespace-nowrap text-sm text-gray-600">${extractValue(doc, 'F/K Oranı')}</td>
+                    </tr>
+                `;
+                
+                // Butonlara finansal ID'yi ekle
+                financialId = id;
+                viewDetailsBtn.onclick = function() {
+                    window.location.href = `/company-financial-detail/${financialId}/`;
+                };
+                
+                // Modalı göster
+                resultModal.classList.remove('hidden');
+            })
+            .catch(error => {
+                console.error('Detay bilgileri alınamadı:', error);
+                showSimpleSuccessResult();
+            });
+    }
+    
+    // HTML içinden belirli bir değeri çıkarmak için yardımcı fonksiyon
+    function extractValue(doc, label) {
+        // Bu fonksiyon, belirli bir etiketle ilişkili değeri HTML'den çıkarmaya çalışır
+        // Gerçek uygulamada HTML yapısına göre seçicileri ayarlamanız gerekir
+        return 'Değer alınamadı';
+    }
+    
+    // Basit başarı sonucunu göster (detay alınamazsa)
+    function showSimpleSuccessResult() {
+        document.getElementById('modalTitle').textContent = 'İşlem Sonucu';
+        document.getElementById('modalContent').innerHTML = `
+            <div class="flex items-center mb-3">
+                <svg class="h-6 w-6 text-green-500 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path>
+                </svg>
+                <span class="text-lg font-medium text-gray-900">Veri yükleme işlemi başarıyla tamamlandı!</span>
+            </div>
+            <p class="text-gray-600">Finansal veriler başarıyla işlendi ve veri tabanına kaydedildi.</p>
+        `;
+        document.getElementById('detailsContent').innerHTML = `
+            <p class="text-gray-600">Detay bilgiler alınamadı. Veri listesinden veya detay sayfasından kontrol edebilirsiniz.</p>
+        `;
+        document.getElementById('extractedDataTable').innerHTML = `
+            <tr>
+                <td class="px-3 py-2 text-sm text-gray-600">Veri detayları alınamadı.</td>
+            </tr>
+        `;
+        
+        resultModal.classList.remove('hidden');
+    }
+    
+    // Hata durumunu göster
+    function showErrorResult(errorMsg) {
+        document.getElementById('modalTitle').textContent = 'İşlem Hatası';
+        document.getElementById('modalContent').innerHTML = `
+            <div class="flex items-center mb-3">
+                <svg class="h-6 w-6 text-red-500 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
+                </svg>
+                <span class="text-lg font-medium text-gray-900">Veri yükleme işlemi sırasında hata oluştu!</span>
+            </div>
+            <p class="text-gray-600">${errorMsg}</p>
+        `;
+        document.getElementById('detailsContent').innerHTML = `
+            <p class="text-gray-600">Lütfen girdiğiniz bilgileri kontrol edip tekrar deneyin.</p>
+        `;
+        document.getElementById('extractedDataTable').innerHTML = `
+            <tr>
+                <td class="px-3 py-2 text-sm text-red-600">Veri çıkarılamadı.</td>
+            </tr>
+        `;
+        
+        resultModal.classList.remove('hidden');
+    }
+    
+    // Modalı kapat
+    closeModalBtn.addEventListener('click', function() {
+        resultModal.classList.add('hidden');
+    });
+    
+    // Veri listesine git
+    goToListBtn.addEventListener('click', function() {
+        window.location.href = '/financial-list/';
+    });
+    
+    // Detay görüntüleme butonu (finansal ID yoksa gizle)
+    viewDetailsBtn.addEventListener('click', function() {
+        if (financialId) {
+            window.location.href = `/company-financial-detail/${financialId}/`;
+        }
+    });
+    
+    // Modalın dışına tıklanınca kapat
+    resultModal.addEventListener('click', function(e) {
+        if (e.target === resultModal) {
+            resultModal.classList.add('hidden');
         }
     });
 });

@@ -1,6 +1,9 @@
 {% extends 'Tahmin/admin_base.html' %}
 
 {% block content %}
+<!-- SweetAlert2 kütüphanesini ekleyin -->
+<script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+
 <div class="bg-white rounded-lg shadow-lg p-6">
     <h1 class="text-2xl font-bold mb-6 text-gray-800">Makroekonomik Veri Yükleme</h1>
     
@@ -24,13 +27,13 @@
     <div class="border-b border-gray-200 mb-6">
         <ul class="flex flex-wrap -mb-px" id="macroTabs" role="tablist">
             <li class="mr-2" role="presentation">
-                <button class="inline-block py-3 px-4 text-sm font-medium text-center text-indigo-600 border-b-2 border-indigo-600 rounded-t-lg active" 
+                <button class="inline-block py-3 px-4 text-sm font-medium text-center text-gray-500 border-b-2 border-transparent rounded-t-lg hover:text-gray-600 hover:border-gray-300" 
                         id="inflation-tab" 
                         data-tabs-target="#inflation" 
                         type="button" 
                         role="tab" 
                         aria-controls="inflation" 
-                        aria-selected="true">
+                        aria-selected="false">
                     Enflasyon Oranları
                 </button>
             </li>
@@ -46,13 +49,13 @@
                 </button>
             </li>
             <li class="mr-2" role="presentation">
-                <button class="inline-block py-3 px-4 text-sm font-medium text-center text-gray-500 border-b-2 border-transparent rounded-t-lg hover:text-gray-600 hover:border-gray-300" 
+                <button class="inline-block py-3 px-4 text-sm font-medium text-center text-indigo-600 border-b-2 border-indigo-600 rounded-t-lg active" 
                         id="exchange-tab" 
                         data-tabs-target="#exchange" 
                         type="button" 
                         role="tab" 
                         aria-controls="exchange" 
-                        aria-selected="false">
+                        aria-selected="true">
                     Döviz Kurları
                 </button>
             </li>
@@ -67,24 +70,13 @@
                     GSYH Büyüme
                 </button>
             </li>
-            <li role="presentation">
-                <button class="inline-block py-3 px-4 text-sm font-medium text-center text-gray-500 border-b-2 border-transparent rounded-t-lg hover:text-gray-600 hover:border-gray-300" 
-                        id="unemployment-tab" 
-                        data-tabs-target="#unemployment" 
-                        type="button" 
-                        role="tab" 
-                        aria-controls="unemployment" 
-                        aria-selected="false">
-                    İşsizlik Oranları
-                </button>
-            </li>
         </ul>
     </div>
 
     <!-- Tab İçerikleri -->
     <div id="tabContent">
         <!-- Enflasyon Oranları Sekmesi -->
-        <div class="block p-4 bg-white rounded-lg" id="inflation" role="tabpanel" aria-labelledby="inflation-tab">
+        <div class="hidden p-4 bg-white rounded-lg" id="inflation" role="tabpanel" aria-labelledby="inflation-tab">
             <div class="bg-yellow-50 p-4 rounded-lg border border-yellow-200 mb-6">
                 <div class="flex items-start">
                     <div class="flex-shrink-0">
@@ -93,249 +85,108 @@
                         </svg>
                     </div>
                     <div class="ml-3">
-                        <h3 class="text-sm font-medium text-yellow-800">Enflasyon Verileri Yükleme</h3>
+                        <h3 class="text-sm font-medium text-yellow-800">Enflasyon Verileri (TÜFE/ÜFE) Yükleme</h3>
                         <div class="mt-2 text-sm text-yellow-700">
-                            <p>TÜFE ve ÜFE verilerini yüklemek için iki yöntem kullanabilirsiniz:</p>
-                            <ul class="list-disc ml-5 mt-2 space-y-1">
-                                <li>Resim olarak TÜFE/ÜFE tablosu yükleyip otomatik veri çıkarma</li>
-                                <li>Excel dosyası (.xlsx) yükleme</li>
-                            </ul>
-                            <p class="mt-2">Resim yüklemeyi seçerseniz, sistem OCR teknolojisi ile verileri otomatik çıkaracak ve düzenlemenize imkan verecektir.</p>
+                            <p>OCR yöntemiyle TÜİK raporlarından enflasyon verilerini çıkarabilir veya Excel dosyası yükleyebilirsiniz.</p>
                         </div>
                     </div>
                 </div>
             </div>
 
-            <!-- Yöntem Seçme Sekmeleri -->
-            <div class="border-b border-gray-200 mb-6">
-                <ul class="flex flex-wrap -mb-px" id="inflationMethodTabs" role="tablist">
-                    <li class="mr-2" role="presentation">
-                        <button class="inline-block py-2 px-4 text-sm font-medium text-center text-yellow-600 border-b-2 border-yellow-600 rounded-t-lg active" 
-                                id="image-upload-tab" 
-                                data-tabs-target="#image-upload" 
-                                type="button" 
-                                role="tab" 
-                                aria-controls="image-upload" 
-                                aria-selected="true">
-                            Resim Yükleme
-                        </button>
-                    </li>
-                    <li class="mr-2" role="presentation">
-                        <button class="inline-block py-2 px-4 text-sm font-medium text-center text-gray-500 border-b-2 border-transparent rounded-t-lg hover:text-gray-600 hover:border-gray-300" 
-                                id="excel-upload-tab" 
-                                data-tabs-target="#excel-upload" 
-                                type="button" 
-                                role="tab" 
-                                aria-controls="excel-upload" 
-                                aria-selected="false">
-                            Excel Yükleme
-                        </button>
-                    </li>
-                </ul>
-            </div>
-
-            <!-- Yöntem Sekme İçerikleri -->
-            <div id="inflationMethodContent">
-                <!-- Resim Yükleme Seçeneği -->
-                <div class="block" id="image-upload" role="tabpanel" aria-labelledby="image-upload-tab">
-                    <div class="bg-white p-4 rounded-lg border border-gray-200 mb-6">
-                        <h3 class="text-md font-medium text-gray-900 mb-3">Resimden TÜFE/ÜFE Verisi Çıkarma</h3>
-                        <p class="text-sm text-gray-600 mb-4">TÜİK veya başka bir kaynaktan aldığınız TÜFE/ÜFE tablo görüntüsünü yükleyin. Sistem OCR ile verileri otomatik çıkaracaktır.</p>
-                        
-                        <form id="ocr-form" class="space-y-6">
-                            {% csrf_token %}
-                            <input type="hidden" name="data_type" value="inflation">
-                            
-                            <div class="flex flex-col space-y-2">
-                                <label for="inflation_image" class="block text-sm font-medium text-gray-700 mb-1">TÜFE/ÜFE Tablo Görüntüsü</label>
-                                <div class="flex items-center justify-center w-full">
-                                    <label id="inflation-image-drop-area" class="flex flex-col rounded-lg border-2 border-dashed border-gray-300 w-full h-40 p-5 group hover:bg-gray-50 cursor-pointer">
-                                        <div class="h-full w-full text-center flex flex-col items-center justify-center" id="inflation-image-placeholder">
-                                            <svg class="w-12 h-12 text-gray-400 group-hover:text-yellow-500" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
-                                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V5a2 2 0 00-2-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path>
-                                            </svg>
-                                            <p class="text-gray-500 text-sm mt-2 pointer-events-none">Sürükleyip bırakın veya <span class="text-yellow-600 font-semibold">resim seçin</span></p>
-                                            <p class="text-xs text-gray-400 mt-1 pointer-events-none">JPG, PNG formatları desteklenir</p>
-                                        </div>
-                                        <div id="image-preview-container" class="h-full w-full hidden flex-col items-center justify-center">
-                                            <img id="image-preview" class="max-h-full max-w-full object-contain" src="" alt="Seçilen resim önizlemesi">
-                                        </div>
-                                        <input type="file" name="inflation_image" id="inflation_image" accept="image/jpeg, image/png" class="hidden" required />
-                                    </label>
-                                </div>
-                                <div id="inflation-image-name" class="text-sm text-green-600 font-medium ml-1 mt-1 hidden"></div>
-                            </div>
-
-                            <div class="flex space-x-4">
-                                <div class="flex-1">
-                                    <label for="inflation_year" class="block text-sm font-medium text-gray-700">Veri Yılı</label>
-                                    <select id="inflation_year" name="inflation_year" class="mt-1 block w-full py-2 px-3 border border-gray-300 bg-white rounded-md shadow-sm focus:outline-none focus:ring-yellow-500 focus:border-yellow-500 sm:text-sm">
-                                        <option value="2024">2024</option>
-                                        <option value="2023">2023</option>
-                                        <option value="2022">2022</option>
-                                        <option value="2021">2021</option>
-                                        <option value="2020">2020</option>
-                                    </select>
-                                </div>
-                                <div class="flex-1">
-                                    <label for="inflation_source" class="block text-sm font-medium text-gray-700">Veri Kaynağı</label>
-                                    <select id="inflation_source" name="inflation_source" class="mt-1 block w-full py-2 px-3 border border-gray-300 bg-white rounded-md shadow-sm focus:outline-none focus:ring-yellow-500 focus:border-yellow-500 sm:text-sm">
-                                        <option value="tuik">TÜİK</option>
-                                        <option value="tcmb">TCMB</option>
-                                        <option value="other">Diğer</option>
-                                    </select>
-                                </div>
-                            </div>
-
-                            <button type="button" id="process-image-btn" class="w-full inline-flex justify-center py-2 px-4 border border-transparent shadow-sm text-sm font-medium rounded-md text-white bg-yellow-600 hover:bg-yellow-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-yellow-500">
-                                <svg class="w-5 h-5 mr-2 -ml-1" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
-                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M9 19l3 3m0 0l3-3m-3 3V10"></path>
-                                </svg>
-                                Resmi İşle ve Verileri Çıkar
-                            </button>
-                        </form>
-                    </div>
-
-                    <!-- OCR Sonuçları ve Düzenleme Bölümü - Başlangıçta gizli -->
-                    <div id="ocr-results" class="hidden">
-                        <div class="bg-green-50 p-4 rounded-lg border border-green-200 mb-6">
-                            <div class="flex items-start">
-                                <div class="flex-shrink-0">
-                                    <svg class="h-5 w-5 text-green-600" fill="currentColor" viewBox="0 0 20 20">
-                                        <path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clip-rule="evenodd"></path>
-                                    </svg>
-                                </div>
-                                <div class="ml-3">
-                                    <h3 class="text-sm font-medium text-green-800">Veriler Başarıyla Çıkarıldı</h3>
-                                    <div class="mt-2 text-sm text-green-700">
-                                        <p>Aşağıdaki tabloyu gözden geçirerek hatalı veri varsa düzeltebilirsiniz.</p>
-                                    </div>
-                                </div>
-                            </div>
+            <!-- Enflasyon Verileri Giriş Formu -->
+            <div class="bg-white p-4 rounded-lg border border-gray-200 mb-6">
+                <h3 class="text-lg font-medium text-gray-900 mb-4">Enflasyon Verileri Girişi</h3>
+                
+                <form action="{% url 'import_macroeconomic_data' %}" method="post" enctype="multipart/form-data" class="space-y-4">
+                    {% csrf_token %}
+                    <input type="hidden" name="data_type" value="inflation">
+                    
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-6 mb-4">
+                        <div>
+                            <label for="inflation_year" class="block text-sm font-medium text-gray-700 mb-1">Yıl</label>
+                            <select id="inflation_year" name="inflation_year" class="mt-1 block w-full py-2 px-3 border border-gray-300 bg-white rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm">
+                                <option value="2025">2025</option>
+                                <option value="2024">2024</option>
+                                <option value="2023">2023</option>
+                                <option value="2022">2022</option>
+                                <option value="2021">2021</option>
+                                <option value="2020">2020</option>
+                            </select>
                         </div>
-
-                        <!-- Düzenlenebilir Tablo -->
-                        <div class="bg-white p-6 rounded-lg border border-gray-200 shadow-sm mb-6">
-                            <h3 class="text-lg font-medium text-gray-900 mb-4">TÜFE/ÜFE Verilerini Düzenle</h3>
-                            
+                        
+                        <div>
+                            <label for="inflation_source" class="block text-sm font-medium text-gray-700 mb-1">Veri Kaynağı</label>
+                            <input type="text" id="inflation_source" name="inflation_source" class="mt-1 block w-full py-2 px-3 border border-gray-300 bg-white rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm" value="TÜİK">
+                        </div>
+                    </div>
+                    
+                    <div class="bg-gray-50 p-4 rounded-lg border border-gray-200">
+                        <h4 class="text-md font-medium text-gray-800 mb-2">Aylık Enflasyon Verileri</h4>
+                        
+                        <div id="inflation-data">
                             <div class="overflow-x-auto">
-                                <table id="inflation-data-table" class="min-w-full divide-y divide-gray-200">
-                                    <thead class="bg-gray-100">
+                                <table class="min-w-full divide-y divide-gray-200">
+                                    <thead>
                                         <tr>
-                                            <th scope="col" class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Ay</th>
-                                            <th scope="col" class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">TÜFE (Aylık %)</th>
-                                            <th scope="col" class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">TÜFE (Yıllık %)</th>
-                                            <th scope="col" class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">ÜFE (Aylık %)</th>
-                                            <th scope="col" class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">ÜFE (Yıllık %)</th>
+                                            <th class="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Ay</th>
+                                            <th class="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">TÜFE Aylık (%)</th>
+                                            <th class="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">TÜFE Yıllık (%)</th>
+                                            <th class="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">ÜFE Aylık (%)</th>
+                                            <th class="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">ÜFE Yıllık (%)</th>
                                         </tr>
                                     </thead>
-                                    <tbody class="bg-white divide-y divide-gray-200" id="inflation-data-body">
+                                    <tbody id="inflation-data-body" class="bg-white divide-y divide-gray-200">
                                         <!-- JavaScript ile doldurulacak -->
                                     </tbody>
                                 </table>
                             </div>
-                            
-                            <div class="mt-6 flex justify-end space-x-3">
-                                <button type="button" id="back-to-upload-btn" class="inline-flex justify-center py-2 px-4 border border-gray-300 shadow-sm text-sm font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-yellow-500">
-                                    <svg class="w-5 h-5 mr-2 -ml-1" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
-                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 17l-5-5m0 0l5-5m-5 5h12"></path>
-                                    </svg>
-                                    Geri Dön
-                                </button>
-                                <button type="button" id="download-excel-btn" class="inline-flex justify-center py-2 px-4 border border-gray-300 shadow-sm text-sm font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-yellow-500">
-                                    <svg class="w-5 h-5 mr-2 -ml-1" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
-                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path>
-                                    </svg>
-                                    Excel İndir
-                                </button>
-                                <form action="{% url 'import_macroeconomic_data' %}" method="post" id="save-inflation-form">
-                                    {% csrf_token %}
-                                    <input type="hidden" name="inflation_data" id="inflation-data-json" value="">
-                                    <input type="hidden" name="data_type" value="inflation">
-                                    <button type="submit" class="inline-flex justify-center py-2 px-6 border border-transparent shadow-sm text-sm font-medium rounded-md text-white bg-yellow-600 hover:bg-yellow-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-yellow-500">
-                                        <svg class="w-5 h-5 mr-2 -ml-1" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
-                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path>
-                                        </svg>
-                                        Verileri Kaydet
-                                    </button>
-                                </form>
-                            </div>
                         </div>
                     </div>
-                </div>
-
-                <!-- Excel Yükleme Seçeneği -->
-                <div class="hidden" id="excel-upload" role="tabpanel" aria-labelledby="excel-upload-tab">
-                    <form action="{% url 'import_macroeconomic_data' %}" method="post" enctype="multipart/form-data" class="space-y-6">
-                        {% csrf_token %}
-                        <input type="hidden" name="data_type" value="inflation">
-                        
-                        <div class="flex flex-col space-y-2">
-                            <label for="inflation_file" class="block text-sm font-medium text-gray-700">Enflasyon Verisi Excel Dosyası</label>
-                            <div class="flex items-center justify-center w-full">
-                                <label class="flex flex-col rounded-lg border-2 border-dashed border-gray-300 w-full h-40 p-5 group hover:bg-gray-50 cursor-pointer">
-                                    <div class="h-full w-full text-center flex flex-col items-center justify-center">
-                                        <svg class="w-12 h-12 text-gray-400 group-hover:text-yellow-500" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
-                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 13h6m-3-3v6m5 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path>
-                                        </svg>
-                                        <p class="text-gray-500 text-sm mt-2 pointer-events-none">Sürükleyip bırakın veya <span class="text-yellow-600 font-semibold">dosya seçin</span></p>
-                                        <p class="text-xs text-gray-400 mt-1 pointer-events-none">Sadece .xlsx ve .xls dosyaları</p>
-                                        <input type="file" name="inflation_file" id="inflation_file" accept=".xlsx, .xls" class="hidden" required />
-                                    </div>
-                                </label>
-                            </div>
-                            <div id="inflation-file-name" class="text-sm text-green-600 font-medium ml-1 mt-1 hidden"></div>
-                        </div>
-
-                        <button type="submit" class="inline-flex justify-center py-2 px-6 border border-transparent shadow-sm text-sm font-medium rounded-md text-white bg-yellow-600 hover:bg-yellow-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-yellow-500">
+                    
+                    <div class="flex justify-end space-x-3 mt-4">
+                        <input type="hidden" id="inflation_data" name="inflation_data" value="">
+                        <button type="submit" class="inline-flex justify-center py-2 px-4 border border-transparent shadow-sm text-sm font-medium rounded-md text-white bg-yellow-600 hover:bg-yellow-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-yellow-500">
                             <svg class="w-5 h-5 mr-2 -ml-1" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
-                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0l-4 4m4-4v12"></path>
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path>
                             </svg>
-                            Enflasyon Verilerini Yükle
+                            Enflasyon Verilerini Kaydet
                         </button>
-                    </form>
-
-                    <div class="mt-6 bg-gray-50 p-5 rounded-lg border border-gray-200">
-                        <h3 class="text-md font-medium text-gray-900 mb-3">Örnek Enflasyon Verisi Formatı</h3>
-                        <div class="overflow-x-auto">
-                            <table class="min-w-full divide-y divide-gray-200">
-                                <thead class="bg-gray-100">
-                                    <tr>
-                                        <th scope="col" class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">tarih</th>
-                                        <th scope="col" class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">tufe</th>
-                                        <th scope="col" class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">tufe_yillik</th>
-                                        <th scope="col" class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">ufe</th>
-                                        <th scope="col" class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">ufe_yillik</th>
-                                    </tr>
-                                </thead>
-                                <tbody class="bg-white divide-y divide-gray-200">
-                                    <tr>
-                                        <td class="px-4 py-3 whitespace-nowrap text-sm text-gray-500">2023-01-01</td>
-                                        <td class="px-4 py-3 whitespace-nowrap text-sm text-gray-500">3.15</td>
-                                        <td class="px-4 py-3 whitespace-nowrap text-sm text-gray-500">64.27</td>
-                                        <td class="px-4 py-3 whitespace-nowrap text-sm text-gray-500">4.08</td>
-                                        <td class="px-4 py-3 whitespace-nowrap text-sm text-gray-500">72.42</td>
-                                    </tr>
-                                    <tr>
-                                        <td class="px-4 py-3 whitespace-nowrap text-sm text-gray-500">2023-02-01</td>
-                                        <td class="px-4 py-3 whitespace-nowrap text-sm text-gray-500">3.80</td>
-                                        <td class="px-4 py-3 whitespace-nowrap text-sm text-gray-500">55.18</td>
-                                        <td class="px-4 py-3 whitespace-nowrap text-sm text-gray-500">3.45</td>
-                                        <td class="px-4 py-3 whitespace-nowrap text-sm text-gray-500">68.15</td>
-                                    </tr>
-                                </tbody>
-                            </table>
-                        </div>
-                        <div class="mt-4 flex justify-center">
-                            <a href="#" class="inline-flex items-center px-4 py-2 border border-gray-300 rounded-md shadow-sm text-sm font-medium text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-yellow-500">
-                                <svg class="mr-2 -ml-1 h-5 w-5 text-gray-500" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
-                                </svg>
-                                Örnek Şablon İndir
-                            </a>
-                        </div>
                     </div>
-                </div>
+                </form>
+            </div>
+            
+            <!-- Excel ile Veri Yükleme -->
+            <div class="bg-white p-4 rounded-lg border border-gray-200 mb-6">
+                <h3 class="text-lg font-medium text-gray-900 mb-4">Excel Dosyası ile Yükleme</h3>
+                
+                <form action="{% url 'import_macroeconomic_data' %}" method="post" enctype="multipart/form-data" class="space-y-4">
+                    {% csrf_token %}
+                    <input type="hidden" name="data_type" value="inflation_excel">
+                    
+                    <div class="flex flex-col space-y-2">
+                        <label for="inflation_file" class="block text-sm font-medium text-gray-700">Enflasyon Verisi Excel Dosyası</label>
+                        <div class="flex items-center justify-center w-full">
+                            <label class="flex flex-col rounded-lg border-2 border-dashed border-gray-300 w-full h-32 p-4 group hover:bg-gray-50 cursor-pointer">
+                                <div class="h-full w-full text-center flex flex-col items-center justify-center">
+                                    <svg class="w-10 h-10 text-gray-400 group-hover:text-yellow-500" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 13h6m-3-3v6m5 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path>
+                                    </svg>
+                                    <p class="text-gray-500 text-sm mt-2 pointer-events-none">Enflasyon verilerini yükleyin</p>
+                                    <p class="text-xs text-gray-400 mt-1 pointer-events-none">Excel formatı (.xlsx, .xls)</p>
+                                    <input type="file" name="inflation_file" id="inflation_file" accept=".xlsx, .xls" class="hidden" required />
+                                </div>
+                            </label>
+                        </div>
+                        <div id="inflation-file-name" class="text-sm text-yellow-600 font-medium ml-1 mt-1 hidden"></div>
+                    </div>
+                    
+                    <button type="submit" class="inline-flex justify-center py-2 px-6 border border-transparent shadow-sm text-sm font-medium rounded-md text-white bg-yellow-600 hover:bg-yellow-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-yellow-500">
+                        <svg class="w-5 h-5 mr-2 -ml-1" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0l-4 4m4-4v12"></path>
+                        </svg>
+                        Excel Dosyasını Yükle
+                    </button>
+                </form>
             </div>
         </div>
 
@@ -351,82 +202,126 @@
                     <div class="ml-3">
                         <h3 class="text-sm font-medium text-blue-800">Faiz Oranları Yükleme</h3>
                         <div class="mt-2 text-sm text-blue-700">
-                            <p>Merkez Bankası politika faizi ve tahvil faizleri verilerini içeren Excel dosyasını yükleyebilirsiniz.</p>
-                            <p class="mt-1">Dosyada şu sütunlar olmalıdır: <code class="px-2 py-1 bg-blue-100 rounded">tarih</code>, <code class="px-2 py-1 bg-blue-100 rounded">policy_rate</code>, <code class="px-2 py-1 bg-blue-100 rounded">bond_yield_2y</code>, <code class="px-2 py-1 bg-blue-100 rounded">bond_yield_10y</code></p>
+                            <p>Politika faizi ve tahvil faizi (2Y/10Y) verilerini seçtiğiniz yöntemle yükleyebilirsiniz.</p>
                         </div>
                     </div>
                 </div>
             </div>
-
-            <form action="{% url 'import_macroeconomic_data' %}" method="post" enctype="multipart/form-data" class="space-y-6">
-                {% csrf_token %}
+            
+            <!-- Yükleme Yöntemi Seçimi -->
+            <div class="bg-white mb-6">
+                <div class="border-b border-gray-200">
+                    <nav class="-mb-px flex space-x-6" aria-label="Tabs">
+                        <button id="combined-upload-tab" class="border-blue-500 text-blue-600 whitespace-nowrap py-3 px-4 border-b-2 font-medium text-sm cursor-pointer" aria-current="page" data-target="combined-upload">Tek Dosya Yükleme</button>
+                        <button id="separate-upload-tab" class="border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300 whitespace-nowrap py-3 px-4 border-b-2 font-medium text-sm cursor-pointer" data-target="separate-upload">Ayrı Dosyalar Yükleme</button>
+                    </nav>
+                </div>
+            </div>
+            
+            <!-- Tek Dosya Yükleme -->
+            <div id="combined-upload" class="bg-white p-4 rounded-lg border border-gray-200 mb-6">
+                <h3 class="text-lg font-medium text-gray-900 mb-4">Birleşik Faiz Oranları Dosyası</h3>
                 
-                <div class="flex flex-col space-y-2">
-                    <label for="interest_file" class="block text-sm font-medium text-gray-700">Faiz Verisi Excel Dosyası</label>
-                    <div class="flex items-center justify-center w-full">
-                        <label class="flex flex-col rounded-lg border-2 border-dashed border-gray-300 w-full h-40 p-5 group hover:bg-gray-50 cursor-pointer">
-                            <div class="h-full w-full text-center flex flex-col items-center justify-center">
-                                <svg class="w-12 h-12 text-gray-400 group-hover:text-blue-500" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
-                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 13h6m-3-3v6m5 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path>
-                                </svg>
-                                <p class="text-gray-500 text-sm mt-2 pointer-events-none">Sürükleyip bırakın veya <span class="text-blue-600 font-semibold">dosya seçin</span></p>
-                                <p class="text-xs text-gray-400 mt-1 pointer-events-none">Sadece .xlsx ve .xls dosyaları</p>
-                                <input type="file" name="interest_file" id="interest_file" accept=".xlsx, .xls" class="hidden" required />
-                            </div>
-                        </label>
+                <form action="{% url 'import_macroeconomic_data' %}" method="post" enctype="multipart/form-data" class="space-y-4">
+                    {% csrf_token %}
+                    <input type="hidden" name="data_type" value="interest">
+                    <input type="hidden" name="upload_method" value="combined">
+                    
+                    <div class="flex flex-col space-y-2">
+                        <label for="interest_file" class="block text-sm font-medium text-gray-700">Faiz Oranları Excel Dosyası</label>
+                        <div class="flex items-center justify-center w-full">
+                            <label class="flex flex-col rounded-lg border-2 border-dashed border-gray-300 w-full h-32 p-4 group hover:bg-gray-50 cursor-pointer">
+                                <div class="h-full w-full text-center flex flex-col items-center justify-center">
+                                    <svg class="w-10 h-10 text-gray-400 group-hover:text-blue-500" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 13h6m-3-3v6m5 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path>
+                                    </svg>
+                                    <p class="text-gray-500 text-sm mt-2 pointer-events-none">Faiz oranları dosyasını yükleyin</p>
+                                    <p class="text-xs text-gray-400 mt-1 pointer-events-none">Excel formatı (.xlsx, .xls)</p>
+                                    <input type="file" name="interest_file" id="interest_file" accept=".xlsx, .xls" class="hidden" required />
+                                </div>
+                            </label>
+                        </div>
+                        <div id="interest-file-name" class="text-sm text-blue-600 font-medium ml-1 mt-1 hidden"></div>
                     </div>
-                    <div id="interest-file-name" class="text-sm text-green-600 font-medium ml-1 mt-1 hidden"></div>
-                </div>
-
-                <button type="submit" class="inline-flex justify-center py-2 px-6 border border-transparent shadow-sm text-sm font-medium rounded-md text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500">
-                    <svg class="w-5 h-5 mr-2 -ml-1" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0l-4 4m4-4v12"></path>
-                    </svg>
-                    Faiz Verilerini Yükle
-                </button>
-            </form>
-
-            <div class="mt-6 bg-gray-50 p-5 rounded-lg border border-gray-200">
-                <h3 class="text-md font-medium text-gray-900 mb-3">Örnek Faiz Verisi Formatı</h3>
-                <div class="overflow-x-auto">
-                    <table class="min-w-full divide-y divide-gray-200">
-                        <thead class="bg-gray-100">
-                            <tr>
-                                <th scope="col" class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">tarih</th>
-                                <th scope="col" class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">policy_rate</th>
-                                <th scope="col" class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">bond_yield_2y</th>
-                                <th scope="col" class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">bond_yield_10y</th>
-                            </tr>
-                        </thead>
-                        <tbody class="bg-white divide-y divide-gray-200">
-                            <tr>
-                                <td class="px-4 py-3 whitespace-nowrap text-sm text-gray-500">2023-01-01</td>
-                                <td class="px-4 py-3 whitespace-nowrap text-sm text-gray-500">9.00</td>
-                                <td class="px-4 py-3 whitespace-nowrap text-sm text-gray-500">9.75</td>
-                                <td class="px-4 py-3 whitespace-nowrap text-sm text-gray-500">10.35</td>
-                            </tr>
-                            <tr>
-                                <td class="px-4 py-3 whitespace-nowrap text-sm text-gray-500">2023-02-01</td>
-                                <td class="px-4 py-3 whitespace-nowrap text-sm text-gray-500">9.00</td>
-                                <td class="px-4 py-3 whitespace-nowrap text-sm text-gray-500">9.83</td>
-                                <td class="px-4 py-3 whitespace-nowrap text-sm text-gray-500">10.42</td>
-                            </tr>
-                        </tbody>
-                    </table>
-                </div>
-                <div class="mt-4 flex justify-center">
-                    <a href="#" class="inline-flex items-center px-4 py-2 border border-gray-300 rounded-md shadow-sm text-sm font-medium text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500">
-                        <svg class="mr-2 -ml-1 h-5 w-5 text-gray-500" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
+                    
+                    <button type="submit" class="inline-flex justify-center py-2 px-6 border border-transparent shadow-sm text-sm font-medium rounded-md text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500">
+                        <svg class="w-5 h-5 mr-2 -ml-1" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0l-4 4m4-4v12"></path>
                         </svg>
-                        Örnek Şablon İndir
-                    </a>
-                </div>
+                        Faiz Verilerini Yükle
+                    </button>
+                </form>
+            </div>
+            
+            <!-- Ayrı Dosyalar Yükleme -->
+            <div id="separate-upload" class="hidden bg-white p-4 rounded-lg border border-gray-200 mb-6">
+                <h3 class="text-lg font-medium text-gray-900 mb-4">Politika Faizi ve Tahvil Faizi Verileri</h3>
+                
+                <form action="{% url 'import_macroeconomic_data' %}" method="post" enctype="multipart/form-data" class="space-y-6">
+                    {% csrf_token %}
+                    <input type="hidden" name="data_type" value="interest">
+                    <input type="hidden" name="upload_method" value="separate">
+                    
+                    <!-- Politika Faizi -->
+                    <div class="border-t border-gray-200 pt-4">
+                        <h4 class="text-md font-medium text-gray-700 mb-3">Politika Faizi (TCMB)</h4>
+                        
+                        <div id="policy-rate-upload" class="mb-4">
+                            <div class="flex flex-col space-y-2">
+                                <label for="policy_rate_file" class="block text-sm font-medium text-gray-700">Politika Faizi Excel/CSV Dosyası</label>
+                                <div class="flex items-center justify-center w-full">
+                                    <label class="flex flex-col rounded-lg border-2 border-dashed border-gray-300 w-full h-24 p-2 group hover:bg-gray-50 cursor-pointer">
+                                        <div class="h-full w-full text-center flex flex-col items-center justify-center">
+                                            <svg class="w-8 h-8 text-gray-400 group-hover:text-blue-500" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+                                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 13h6m-3-3v6m5 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path>
+                                            </svg>
+                                            <p class="text-gray-500 text-sm mt-1 pointer-events-none">Politika faizi verilerini yükleyin</p>
+                                            <input type="file" name="policy_rate_file" id="policy_rate_file" accept=".csv, .xlsx, .xls" class="hidden" />
+                                        </div>
+                                    </label>
+                                </div>
+                                <div id="policy-rate-file-name" class="text-sm text-blue-600 font-medium ml-1 mt-1 hidden"></div>
+                            </div>
+                        </div>
+                        
+                        <input type="hidden" name="policy_rate_data" id="policy_rate_data" value="">
+                    </div>
+                    
+                    <!-- Tahvil Faizi -->
+                    <div class="border-t border-gray-200 pt-4">
+                        <h4 class="text-md font-medium text-gray-700 mb-3">Tahvil Faizleri (2Y/10Y)</h4>
+                        
+                        <div class="flex flex-col space-y-2">
+                            <label for="bond_yield_file" class="block text-sm font-medium text-gray-700">Tahvil Faizi Excel/CSV Dosyası</label>
+                            <div class="flex items-center justify-center w-full">
+                                <label class="flex flex-col rounded-lg border-2 border-dashed border-gray-300 w-full h-24 p-2 group hover:bg-gray-50 cursor-pointer">
+                                    <div class="h-full w-full text-center flex flex-col items-center justify-center">
+                                        <svg class="w-8 h-8 text-gray-400 group-hover:text-blue-500" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 13h6m-3-3v6m5 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path>
+                                        </svg>
+                                        <p class="text-gray-500 text-sm mt-1 pointer-events-none">Tahvil faizi verilerini yükleyin</p>
+                                        <input type="file" name="bond_yield_file" id="bond_yield_file" accept=".csv, .xlsx, .xls" class="hidden" />
+                                    </div>
+                                </label>
+                            </div>
+                            <div id="bond-yield-file-name" class="text-sm text-blue-600 font-medium ml-1 mt-1 hidden"></div>
+                        </div>
+                    </div>
+                    
+                    <div class="flex justify-end space-x-3 pt-4 border-t border-gray-200">
+                        <button type="submit" class="inline-flex justify-center py-2 px-6 border border-transparent shadow-sm text-sm font-medium rounded-md text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500">
+                            <svg class="w-5 h-5 mr-2 -ml-1" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0l-4 4m4-4v12"></path>
+                            </svg>
+                            Faiz Verilerini Birleştir ve Yükle
+                        </button>
+                    </div>
+                </form>
             </div>
         </div>
 
         <!-- Döviz Kurları Sekmesi -->
-        <div class="hidden p-4 bg-white rounded-lg" id="exchange" role="tabpanel" aria-labelledby="exchange-tab">
+        <div class="block p-4 bg-white rounded-lg" id="exchange" role="tabpanel" aria-labelledby="exchange-tab">
             <div class="bg-green-50 p-4 rounded-lg border border-green-200 mb-6">
                 <div class="flex items-start">
                     <div class="flex-shrink-0">
@@ -435,78 +330,124 @@
                         </svg>
                     </div>
                     <div class="ml-3">
-                        <h3 class="text-sm font-medium text-green-800">Döviz Kurları Yükleme</h3>
+                        <h3 class="text-sm font-medium text-green-800">Döviz Kuru Verileri Yükleme</h3>
                         <div class="mt-2 text-sm text-green-700">
-                            <p>USD/TRY ve EUR/TRY gibi döviz kuru verilerini içeren Excel dosyasını yükleyebilirsiniz.</p>
-                            <p class="mt-1">Dosyada şu sütunlar olmalıdır: <code class="px-2 py-1 bg-green-100 rounded">tarih</code>, <code class="px-2 py-1 bg-green-100 rounded">usd_try</code>, <code class="px-2 py-1 bg-green-100 rounded">eur_try</code>, <code class="px-2 py-1 bg-green-100 rounded">gbp_try</code> (isteğe bağlı), <code class="px-2 py-1 bg-green-100 rounded">jpy_try</code> (isteğe bağlı)</p>
+                            <p>USD/TL ve EUR/TL verilerini ayrı ayrı yükleyebilirsiniz. Sistem, tarih bazında eşleştirme yapacaktır.</p>
+                            <p class="mt-1">CSV dosyalarınızda şu sütunlar bulunmalıdır: <code class="px-2 py-1 bg-green-100 rounded">tarih</code>, <code class="px-2 py-1 bg-green-100 rounded">açılış</code>, <code class="px-2 py-1 bg-green-100 rounded">yüksek</code>, <code class="px-2 py-1 bg-green-100 rounded">düşük</code>, <code class="px-2 py-1 bg-green-100 rounded">kapanış/şimdi</code></p>
                         </div>
                     </div>
                 </div>
             </div>
 
-            <form action="{% url 'import_macroeconomic_data' %}" method="post" enctype="multipart/form-data" class="space-y-6">
-                {% csrf_token %}
+            <!-- USD/TL Kısmı -->
+            <div class="mb-8 bg-white p-4 rounded-lg border border-gray-200">
+                <h3 class="text-lg font-medium text-gray-900 mb-4">USD/TL Verileri</h3>
                 
-                <div class="flex flex-col space-y-2">
-                    <label for="exchange_file" class="block text-sm font-medium text-gray-700">Döviz Kuru Excel Dosyası</label>
-                    <div class="flex items-center justify-center w-full">
-                        <label class="flex flex-col rounded-lg border-2 border-dashed border-gray-300 w-full h-40 p-5 group hover:bg-gray-50 cursor-pointer">
-                            <div class="h-full w-full text-center flex flex-col items-center justify-center">
-                                <svg class="w-12 h-12 text-gray-400 group-hover:text-green-500" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
-                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 13h6m-3-3v6m5 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path>
-                                </svg>
-                                <p class="text-gray-500 text-sm mt-2 pointer-events-none">Sürükleyip bırakın veya <span class="text-green-600 font-semibold">dosya seçin</span></p>
-                                <p class="text-xs text-gray-400 mt-1 pointer-events-none">Sadece .xlsx ve .xls dosyaları</p>
-                                <input type="file" name="exchange_file" id="exchange_file" accept=".xlsx, .xls" class="hidden" required />
-                            </div>
-                        </label>
+                <form action="{% url 'import_macroeconomic_data' %}" method="post" enctype="multipart/form-data" class="space-y-4">
+                    {% csrf_token %}
+                    <input type="hidden" name="data_type" value="exchange">
+                    <input type="hidden" name="upload_method" value="separate">
+                    <input type="hidden" name="currency_type" value="USD">
+                    
+                    <div class="flex flex-col space-y-2">
+                        <label for="usd_file" class="block text-sm font-medium text-gray-700">USD/TL Verisi CSV Dosyası</label>
+                        <div class="flex items-center justify-center w-full">
+                            <label class="flex flex-col rounded-lg border-2 border-dashed border-gray-300 w-full h-32 p-4 group hover:bg-gray-50 cursor-pointer">
+                                <div class="h-full w-full text-center flex flex-col items-center justify-center">
+                                    <svg class="w-10 h-10 text-gray-400 group-hover:text-green-500" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 13h6m-3-3v6m5 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path>
+                                    </svg>
+                                    <p class="text-gray-500 text-sm mt-2 pointer-events-none">Dolar/TL verilerini yükleyin</p>
+                                    <p class="text-xs text-gray-400 mt-1 pointer-events-none">CSV veya Excel formatı</p>
+                                    <input type="file" name="exchange_file" id="usd_file" accept=".csv, .xlsx, .xls" class="hidden" required />
+                                </div>
+                            </label>
+                        </div>
+                        <div id="usd-file-name" class="text-sm text-green-600 font-medium ml-1 mt-1 hidden"></div>
                     </div>
-                    <div id="exchange-file-name" class="text-sm text-green-600 font-medium ml-1 mt-1 hidden"></div>
-                </div>
 
-                <button type="submit" class="inline-flex justify-center py-2 px-6 border border-transparent shadow-sm text-sm font-medium rounded-md text-white bg-green-600 hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-green-500">
-                    <svg class="w-5 h-5 mr-2 -ml-1" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0l-4 4m4-4v12"></path>
-                    </svg>
-                    Döviz Kuru Verilerini Yükle
-                </button>
-            </form>
+                    <button type="submit" class="inline-flex justify-center py-2 px-6 border border-transparent shadow-sm text-sm font-medium rounded-md text-white bg-green-600 hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-green-500">
+                        <svg class="w-5 h-5 mr-2 -ml-1" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0l-4 4m4-4v12"></path>
+                        </svg>
+                        USD/TL Verilerini Yükle
+                    </button>
+                </form>
+            </div>
 
+            <!-- EUR/TL Kısmı -->
+            <div class="mb-8 bg-white p-4 rounded-lg border border-gray-200">
+                <h3 class="text-lg font-medium text-gray-900 mb-4">EUR/TL Verileri</h3>
+                
+                <form action="{% url 'import_macroeconomic_data' %}" method="post" enctype="multipart/form-data" class="space-y-4">
+                    {% csrf_token %}
+                    <input type="hidden" name="data_type" value="exchange">
+                    <input type="hidden" name="upload_method" value="separate">
+                    <input type="hidden" name="currency_type" value="EUR">
+                    
+                    <div class="flex flex-col space-y-2">
+                        <label for="eur_file" class="block text-sm font-medium text-gray-700">EUR/TL Verisi CSV Dosyası</label>
+                        <div class="flex items-center justify-center w-full">
+                            <label class="flex flex-col rounded-lg border-2 border-dashed border-gray-300 w-full h-32 p-4 group hover:bg-gray-50 cursor-pointer">
+                                <div class="h-full w-full text-center flex flex-col items-center justify-center">
+                                    <svg class="w-10 h-10 text-gray-400 group-hover:text-green-500" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 13h6m-3-3v6m5 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path>
+                                    </svg>
+                                    <p class="text-gray-500 text-sm mt-2 pointer-events-none">Euro/TL verilerini yükleyin</p>
+                                    <p class="text-xs text-gray-400 mt-1 pointer-events-none">CSV veya Excel formatı</p>
+                                    <input type="file" name="exchange_file" id="eur_file" accept=".csv, .xlsx, .xls" class="hidden" required />
+                                </div>
+                            </label>
+                        </div>
+                        <div id="eur-file-name" class="text-sm text-green-600 font-medium ml-1 mt-1 hidden"></div>
+                    </div>
+
+                    <button type="submit" class="inline-flex justify-center py-2 px-6 border border-transparent shadow-sm text-sm font-medium rounded-md text-white bg-green-600 hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-green-500">
+                        <svg class="w-5 h-5 mr-2 -ml-1" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0l-4 4m4-4v12"></path>
+                        </svg>
+                        EUR/TL Verilerini Yükle
+                    </button>
+                </form>
+            </div>
+
+            <!-- Örnek CSV Formatı -->
             <div class="mt-6 bg-gray-50 p-5 rounded-lg border border-gray-200">
                 <h3 class="text-md font-medium text-gray-900 mb-3">Örnek Döviz Kuru Formatı</h3>
                 <div class="overflow-x-auto">
                     <table class="min-w-full divide-y divide-gray-200">
                         <thead class="bg-gray-100">
                             <tr>
-                                <th scope="col" class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">tarih</th>
-                                <th scope="col" class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">usd_try</th>
-                                <th scope="col" class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">eur_try</th>
-                                <th scope="col" class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">gbp_try</th>
+                                <th scope="col" class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Tarih</th>
+                                <th scope="col" class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Şimdi</th>
+                                <th scope="col" class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Açılış</th>
+                                <th scope="col" class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Yüksek</th>
+                                <th scope="col" class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Düşük</th>
+                                <th scope="col" class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Hacim</th>
+                                <th scope="col" class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Fark %</th>
                             </tr>
                         </thead>
                         <tbody class="bg-white divide-y divide-gray-200">
                             <tr>
-                                <td class="px-4 py-3 whitespace-nowrap text-sm text-gray-500">2023-01-01</td>
-                                <td class="px-4 py-3 whitespace-nowrap text-sm text-gray-500">18.7123</td>
-                                <td class="px-4 py-3 whitespace-nowrap text-sm text-gray-500">19.9634</td>
-                                <td class="px-4 py-3 whitespace-nowrap text-sm text-gray-500">22.5891</td>
+                                <td class="px-4 py-3 whitespace-nowrap text-sm text-gray-500">15.05.2025</td>
+                                <td class="px-4 py-3 whitespace-nowrap text-sm text-gray-500">38.6914</td>
+                                <td class="px-4 py-3 whitespace-nowrap text-sm text-gray-500">38.7287</td>
+                                <td class="px-4 py-3 whitespace-nowrap text-sm text-gray-500">38.7901</td>
+                                <td class="px-4 py-3 whitespace-nowrap text-sm text-gray-500">38.6595</td>
+                                <td class="px-4 py-3 whitespace-nowrap text-sm text-gray-500">-</td>
+                                <td class="px-4 py-3 whitespace-nowrap text-sm text-gray-500">-0.19%</td>
                             </tr>
                             <tr>
-                                <td class="px-4 py-3 whitespace-nowrap text-sm text-gray-500">2023-02-01</td>
-                                <td class="px-4 py-3 whitespace-nowrap text-sm text-gray-500">18.8323</td>
-                                <td class="px-4 py-3 whitespace-nowrap text-sm text-gray-500">20.4512</td>
-                                <td class="px-4 py-3 whitespace-nowrap text-sm text-gray-500">23.1207</td>
+                                <td class="px-4 py-3 whitespace-nowrap text-sm text-gray-500">14.05.2025</td>
+                                <td class="px-4 py-3 whitespace-nowrap text-sm text-gray-500">38.7644</td>
+                                <td class="px-4 py-3 whitespace-nowrap text-sm text-gray-500">38.7287</td>
+                                <td class="px-4 py-3 whitespace-nowrap text-sm text-gray-500">38.8993</td>
+                                <td class="px-4 py-3 whitespace-nowrap text-sm text-gray-500">38.6162</td>
+                                <td class="px-4 py-3 whitespace-nowrap text-sm text-gray-500">-</td>
+                                <td class="px-4 py-3 whitespace-nowrap text-sm text-gray-500">-0.07%</td>
                             </tr>
                         </tbody>
                     </table>
-                </div>
-                <div class="mt-4 flex justify-center">
-                    <a href="#" class="inline-flex items-center px-4 py-2 border border-gray-300 rounded-md shadow-sm text-sm font-medium text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-green-500">
-                        <svg class="mr-2 -ml-1 h-5 w-5 text-gray-500" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
-                        </svg>
-                        Örnek Şablon İndir
-                    </a>
                 </div>
             </div>
         </div>
@@ -514,170 +455,9 @@
         <!-- GSYH Büyüme Sekmesi -->
         <div class="hidden p-4 bg-white rounded-lg" id="gdp" role="tabpanel" aria-labelledby="gdp-tab">
             <div class="bg-purple-50 p-4 rounded-lg border border-purple-200 mb-6">
-                <div class="flex items-start">
-                    <div class="flex-shrink-0">
-                        <svg class="h-5 w-5 text-purple-600" fill="currentColor" viewBox="0 0 20 20">
-                            <path fill-rule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a1 1 0 000 2v3a1 1 0 001 1h1a1 1 0 100-2h-1V9z" clip-rule="evenodd"></path>
-                        </svg>
-                    </div>
-                    <div class="ml-3">
-                        <h3 class="text-sm font-medium text-purple-800">GSYH Büyüme Verileri Yükleme</h3>
-                        <div class="mt-2 text-sm text-purple-700">
-                            <p>Gayri Safi Yurtiçi Hasıla (GSYH) büyüme verilerini içeren Excel dosyasını yükleyebilirsiniz.</p>
-                            <p class="mt-1">Dosyada şu sütunlar olmalıdır: <code class="px-2 py-1 bg-purple-100 rounded">tarih</code>, <code class="px-2 py-1 bg-purple-100 rounded">donem</code>, <code class="px-2 py-1 bg-purple-100 rounded">gdp_growth</code>, <code class="px-2 py-1 bg-purple-100 rounded">gdp_growth_yillik</code></p>
-                        </div>
-                    </div>
-                </div>
+                <p class="text-sm text-purple-700">GSYH büyüme verilerini Excel dosyası olarak yükleyebilirsiniz.</p>
             </div>
-
-            <form action="{% url 'import_macroeconomic_data' %}" method="post" enctype="multipart/form-data" class="space-y-6">
-                {% csrf_token %}
-                
-                <div class="flex flex-col space-y-2">
-                    <label for="gdp_file" class="block text-sm font-medium text-gray-700">GSYH Büyüme Excel Dosyası</label>
-                    <div class="flex items-center justify-center w-full">
-                        <label class="flex flex-col rounded-lg border-2 border-dashed border-gray-300 w-full h-40 p-5 group hover:bg-gray-50 cursor-pointer">
-                            <div class="h-full w-full text-center flex flex-col items-center justify-center">
-                                <svg class="w-12 h-12 text-gray-400 group-hover:text-purple-500" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
-                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 13h6m-3-3v6m5 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path>
-                                </svg>
-                                <p class="text-gray-500 text-sm mt-2 pointer-events-none">Sürükleyip bırakın veya <span class="text-purple-600 font-semibold">dosya seçin</span></p>
-                                <p class="text-xs text-gray-400 mt-1 pointer-events-none">Sadece .xlsx ve .xls dosyaları</p>
-                                <input type="file" name="gdp_file" id="gdp_file" accept=".xlsx, .xls" class="hidden" required />
-                            </div>
-                        </label>
-                    </div>
-                    <div class="text-sm text-gray-500 ml-1 mt-1 gdp-file-name"></div>
-                </div>
-
-                <button type="submit" class="inline-flex justify-center py-2 px-6 border border-transparent shadow-sm text-sm font-medium rounded-md text-white bg-purple-600 hover:bg-purple-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-purple-500">
-                    <svg class="w-5 h-5 mr-2 -ml-1" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0l-4 4m4-4v12"></path>
-                    </svg>
-                    GSYH Büyüme Verilerini Yükle
-                </button>
-            </form>
-
-            <div class="mt-6 bg-gray-50 p-5 rounded-lg border border-gray-200">
-                <h3 class="text-md font-medium text-gray-900 mb-3">Örnek GSYH Büyüme Formatı</h3>
-                <div class="overflow-x-auto">
-                    <table class="min-w-full divide-y divide-gray-200">
-                        <thead class="bg-gray-100">
-                            <tr>
-                                <th scope="col" class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">tarih</th>
-                                <th scope="col" class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">donem</th>
-                                <th scope="col" class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">gdp_growth</th>
-                                <th scope="col" class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">gdp_growth_yillik</th>
-                            </tr>
-                        </thead>
-                        <tbody class="bg-white divide-y divide-gray-200">
-                            <tr>
-                                <td class="px-4 py-3 whitespace-nowrap text-sm text-gray-500">2023-01-01</td>
-                                <td class="px-4 py-3 whitespace-nowrap text-sm text-gray-500">Q1</td>
-                                <td class="px-4 py-3 whitespace-nowrap text-sm text-gray-500">1.2</td>
-                                <td class="px-4 py-3 whitespace-nowrap text-sm text-gray-500">4.7</td>
-                            </tr>
-                            <tr>
-                                <td class="px-4 py-3 whitespace-nowrap text-sm text-gray-500">2023-04-01</td>
-                                <td class="px-4 py-3 whitespace-nowrap text-sm text-gray-500">Q2</td>
-                                <td class="px-4 py-3 whitespace-nowrap text-sm text-gray-500">0.8</td>
-                                <td class="px-4 py-3 whitespace-nowrap text-sm text-gray-500">3.9</td>
-                            </tr>
-                        </tbody>
-                    </table>
-                </div>
-                <div class="mt-4 flex justify-center">
-                    <a href="#" class="inline-flex items-center px-4 py-2 border border-gray-300 rounded-md shadow-sm text-sm font-medium text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-purple-500">
-                        <svg class="mr-2 -ml-1 h-5 w-5 text-gray-500" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
-                        </svg>
-                        Örnek Şablon İndir
-                    </a>
-                </div>
-            </div>
-        </div>
-
-        <!-- İşsizlik Oranları Sekmesi -->
-        <div class="hidden p-4 bg-white rounded-lg" id="unemployment" role="tabpanel" aria-labelledby="unemployment-tab">
-            <div class="bg-orange-50 p-4 rounded-lg border border-orange-200 mb-6">
-                <div class="flex items-start">
-                    <div class="flex-shrink-0">
-                        <svg class="h-5 w-5 text-orange-600" fill="currentColor" viewBox="0 0 20 20">
-                            <path fill-rule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a1 1 0 000 2v3a1 1 0 001 1h1a1 1 0 100-2h-1V9z" clip-rule="evenodd"></path>
-                        </svg>
-                    </div>
-                    <div class="ml-3">
-                        <h3 class="text-sm font-medium text-orange-800">İşsizlik Oranları Yükleme</h3>
-                        <div class="mt-2 text-sm text-orange-700">
-                            <p>İşsizlik oranları verilerini içeren Excel dosyasını yükleyebilirsiniz.</p>
-                            <p class="mt-1">Dosyada şu sütunlar olmalıdır: <code class="px-2 py-1 bg-orange-100 rounded">tarih</code>, <code class="px-2 py-1 bg-orange-100 rounded">unemployment_rate</code>, <code class="px-2 py-1 bg-orange-100 rounded">youth_unemployment_rate</code> (isteğe bağlı)</p>
-                        </div>
-                    </div>
-                </div>
-            </div>
-
-            <form action="{% url 'import_macroeconomic_data' %}" method="post" enctype="multipart/form-data" class="space-y-6">
-                {% csrf_token %}
-                
-                <div class="flex flex-col space-y-2">
-                    <label for="unemployment_file" class="block text-sm font-medium text-gray-700">İşsizlik Oranları Excel Dosyası</label>
-                    <div class="flex items-center justify-center w-full">
-                        <label class="flex flex-col rounded-lg border-2 border-dashed border-gray-300 w-full h-40 p-5 group hover:bg-gray-50 cursor-pointer">
-                            <div class="h-full w-full text-center flex flex-col items-center justify-center">
-                                <svg class="w-12 h-12 text-gray-400 group-hover:text-orange-500" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
-                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 13h6m-3-3v6m5 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path>
-                                </svg>
-                                <p class="text-gray-500 text-sm mt-2 pointer-events-none">Sürükleyip bırakın veya <span class="text-orange-600 font-semibold">dosya seçin</span></p>
-                                <p class="text-xs text-gray-400 mt-1 pointer-events-none">Sadece .xlsx ve .xls dosyaları</p>
-                                <input type="file" name="unemployment_file" id="unemployment_file" accept=".xlsx, .xls" class="hidden" required />
-                            </div>
-                        </label>
-                    </div>
-                    <div class="text-sm text-gray-500 ml-1 mt-1 unemployment-file-name"></div>
-                </div>
-
-                <button type="submit" class="inline-flex justify-center py-2 px-6 border border-transparent shadow-sm text-sm font-medium rounded-md text-white bg-orange-600 hover:bg-orange-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-orange-500">
-                    <svg class="w-5 h-5 mr-2 -ml-1" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0l-4 4m4-4v12"></path>
-                    </svg>
-                    İşsizlik Oranlarını Yükle
-                </button>
-            </form>
-
-            <div class="mt-6 bg-gray-50 p-5 rounded-lg border border-gray-200">
-                <h3 class="text-md font-medium text-gray-900 mb-3">Örnek İşsizlik Oranları Formatı</h3>
-                <div class="overflow-x-auto">
-                    <table class="min-w-full divide-y divide-gray-200">
-                        <thead class="bg-gray-100">
-                            <tr>
-                                <th scope="col" class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">tarih</th>
-                                <th scope="col" class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">unemployment_rate</th>
-                                <th scope="col" class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">youth_unemployment_rate</th>
-                            </tr>
-                        </thead>
-                        <tbody class="bg-white divide-y divide-gray-200">
-                            <tr>
-                                <td class="px-4 py-3 whitespace-nowrap text-sm text-gray-500">2023-01-01</td>
-                                <td class="px-4 py-3 whitespace-nowrap text-sm text-gray-500">11.2</td>
-                                <td class="px-4 py-3 whitespace-nowrap text-sm text-gray-500">19.8</td>
-                            </tr>
-                            <tr>
-                                <td class="px-4 py-3 whitespace-nowrap text-sm text-gray-500">2023-02-01</td>
-                                <td class="px-4 py-3 whitespace-nowrap text-sm text-gray-500">10.8</td>
-                                <td class="px-4 py-3 whitespace-nowrap text-sm text-gray-500">18.5</td>
-                            </tr>
-                        </tbody>
-                    </table>
-                </div>
-                <div class="mt-4 flex justify-center">
-                    <a href="#" class="inline-flex items-center px-4 py-2 border border-gray-300 rounded-md shadow-sm text-sm font-medium text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-orange-500">
-                        <svg class="mr-2 -ml-1 h-5 w-5 text-gray-500" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
-                        </svg>
-                        Örnek Şablon İndir
-                    </a>
-                </div>
-            </div>
+            <!-- GSYH büyüme verisi yükleme formları buraya gelecek -->
         </div>
     </div>
 
@@ -693,25 +473,101 @@
 
 <script>
 document.addEventListener('DOMContentLoaded', function() {
-    // Dosya seçim işlemleri
-    const fileInputs = document.querySelectorAll('input[type="file"]');
+    // Dosya Yükleme İşlemleri
+    const usdFileInput = document.getElementById('usd_file');
+    const usdFileName = document.getElementById('usd-file-name');
+    const eurFileInput = document.getElementById('eur_file');
+    const eurFileName = document.getElementById('eur-file-name');
     
-    fileInputs.forEach(input => {
-        input.addEventListener('change', function() {
-            const fileNameClass = '.' + this.id + '-name';
-            const fileNameDisplay = document.querySelector(fileNameClass);
-            
+    // USD dosya seçildiğinde
+    if (usdFileInput) {
+        usdFileInput.addEventListener('change', function() {
             if (this.files.length > 0) {
-                fileNameDisplay.textContent = 'Seçilen dosya: ' + this.files[0].name;
+                usdFileName.textContent = 'Seçilen dosya: ' + this.files[0].name;
+                usdFileName.classList.remove('hidden');
             } else {
-                fileNameDisplay.textContent = '';
+                usdFileName.textContent = '';
+                usdFileName.classList.add('hidden');
             }
+        });
+    }
+    
+    // EUR dosya seçildiğinde
+    if (eurFileInput) {
+        eurFileInput.addEventListener('change', function() {
+            if (this.files.length > 0) {
+                eurFileName.textContent = 'Seçilen dosya: ' + this.files[0].name;
+                eurFileName.classList.remove('hidden');
+            } else {
+                eurFileName.textContent = '';
+                eurFileName.classList.add('hidden');
+            }
+        });
+    }
+    
+    // Form gönderimlerini yakala ve SweetAlert2 ile sonuç göster
+    const exchangeForms = document.querySelectorAll('form[action="{% url "import_macroeconomic_data" %}"]');
+    
+    exchangeForms.forEach(form => {
+        form.addEventListener('submit', function(e) {
+            e.preventDefault();
+            
+            // Yükleme işlemi başlamadan önce loading göster
+            Swal.fire({
+                title: 'İşleniyor...',
+                html: 'Dosya yükleniyor ve işleniyor, lütfen bekleyin.',
+                allowOutsideClick: false,
+                didOpen: () => {
+                    Swal.showLoading();
+                }
+            });
+            
+            // Form verilerini al
+            const formData = new FormData(this);
+            
+            // AJAX ile formu gönder
+            fetch('{% url "import_macroeconomic_data" %}', {
+                method: 'POST',
+                body: formData,
+                headers: {
+                    'X-Requested-With': 'XMLHttpRequest'
+                }
+            })
+            .then(response => {
+                if (!response.ok) {
+                    throw new Error('Sunucu hatası oluştu.');
+                }
+                return response.text();
+            })
+            .then(html => {
+                // Başarılı işlem mesajı göster (içerik kontrolü yapmadan)
+                Swal.fire({
+                    title: 'İşlem Başarılı!',
+                    text: 'Dosya başarıyla yüklendi ve işlendi.',
+                    icon: 'success',
+                    confirmButtonText: 'Tamam'
+                }).then((result) => {
+                    // Popup kapatıldıktan sonra sayfayı yenileyelim
+                    if (result.isConfirmed) {
+                        window.location.reload();
+                    }
+                });
+            })
+            .catch(error => {
+                // Hata durumunda
+                Swal.fire({
+                    title: 'Hata!',
+                    text: error.message || 'Bir hata oluştu.',
+                    icon: 'error',
+                    confirmButtonText: 'Tamam'
+                });
+            });
         });
     });
     
-    // Tab Geçişleri - Ana sekmeler için
+    // Tab Geçişleri
     const tabButtons = document.querySelectorAll('#macroTabs button[role="tab"]');
-    const tabContents = document.querySelectorAll('div[role="tabpanel"][aria-labelledby$="-tab"]');
+    const tabContents = document.querySelectorAll('#tabContent > div[role="tabpanel"]');
     
     tabButtons.forEach(button => {
         button.addEventListener('click', function() {
@@ -730,312 +586,191 @@ document.addEventListener('DOMContentLoaded', function() {
             // Tab içeriklerini gizle
             tabContents.forEach(content => {
                 content.classList.add('hidden');
+                content.classList.remove('block');
             });
             
             // Seçilen tab içeriğini göster
             const targetTab = this.getAttribute('data-tabs-target').substring(1);
             document.getElementById(targetTab).classList.remove('hidden');
+            document.getElementById(targetTab).classList.add('block');
         });
     });
-
-    // Enflasyon sekmesi içindeki alt sekmeler için geçiş işlemleri
-    const inflationMethodTabs = document.querySelectorAll('#inflationMethodTabs button[role="tab"]');
-    const inflationMethodContents = document.querySelectorAll('#inflationMethodContent > div');
     
-    inflationMethodTabs.forEach(button => {
+    // Faiz Oranları Alt Sekmeleri
+    const interestSubTabButtons = document.querySelectorAll('#combined-upload-tab, #separate-upload-tab');
+    const interestSubTabContents = document.querySelectorAll('#combined-upload, #separate-upload');
+    
+    interestSubTabButtons.forEach(button => {
         button.addEventListener('click', function() {
-            // Aktif tab butonunun stilini kaldır
-            inflationMethodTabs.forEach(btn => {
-                btn.classList.remove('text-yellow-600', 'border-yellow-600');
-                btn.classList.add('text-gray-500', 'border-transparent');
-                btn.setAttribute('aria-selected', 'false');
+            // Aktif alt tab butonunun stilini kaldır
+            interestSubTabButtons.forEach(btn => {
+                btn.classList.remove('border-blue-500', 'text-blue-600');
+                btn.classList.add('border-transparent', 'text-gray-500');
             });
             
             // Tıklanan butonun stilini güncelle
-            this.classList.remove('text-gray-500', 'border-transparent');
-            this.classList.add('text-yellow-600', 'border-yellow-600');
-            this.setAttribute('aria-selected', 'true');
+            this.classList.remove('border-transparent', 'text-gray-500');
+            this.classList.add('border-blue-500', 'text-blue-600');
             
-            // Tab içeriklerini gizle
-            inflationMethodContents.forEach(content => {
+            // Alt tab içeriklerini gizle
+            interestSubTabContents.forEach(content => {
                 content.classList.add('hidden');
             });
             
-            // Seçilen tab içeriğini göster
-            const targetTab = this.getAttribute('data-tabs-target').substring(1);
-            document.getElementById(targetTab).classList.remove('hidden');
+            // Seçilen alt tab içeriğini göster
+            const targetContent = this.getAttribute('data-target');
+            document.getElementById(targetContent).classList.remove('hidden');
         });
     });
-
-    // OCR ve Veri İşleme
-    const processImageBtn = document.getElementById('process-image-btn');
-    const ocrForm = document.getElementById('ocr-form');
-    const ocrResults = document.getElementById('ocr-results');
+    
+    // Enflasyon verileri için tablo oluşturma
     const inflationDataBody = document.getElementById('inflation-data-body');
-    const inflationDataJson = document.getElementById('inflation-data-json');
-    const backToUploadBtn = document.getElementById('back-to-upload-btn');
-    const downloadExcelBtn = document.getElementById('download-excel-btn');
-    const saveInflationForm = document.getElementById('save-inflation-form');
-
-    // TUFE-UFE veri işleme
-    processImageBtn?.addEventListener('click', function() {
-        const imageInput = document.getElementById('inflation_image');
-        const yearSelect = document.getElementById('inflation_year');
+    const inflationYear = document.getElementById('inflation_year');
+    const inflationDataJson = document.getElementById('inflation_data');
+    
+    if (inflationYear && inflationDataBody) {
+        // Yıl değiştiğinde tabloyu güncelle
+        inflationYear.addEventListener('change', function() {
+            generateInflationTable();
+        });
         
-        if (!imageInput.files || imageInput.files.length === 0) {
-            alert('Lütfen bir resim seçin.');
-            return;
-        }
-
-        // Yükleme sırasında bildirim göster
-        showProcessingFeedback();
+        // Sayfa yüklendiğinde tabloyu oluştur
+        generateInflationTable();
         
-        // Normalde burada resim OCR işlemi için sunucuya gönderilir
-        // Şimdilik demo amaçlı olarak örnek veri gösteriyoruz
-        
-        // Simüle edilmiş OCR işlemi (1-2 saniye bekle)
-        setTimeout(() => {
-            // Resimden çıkarılan örnek veriler (gerçekte OCR'dan gelecek)
-            // Yüklenmiş resimden örnek veri çıkarımı - TÜİK tablosu formatına uygun
-            const ocrData = [
-                { month: "Ocak", tufe_monthly: 6.70, tufe_yearly: 64.86, ufe_monthly: 4.14, ufe_yearly: 44.20 },
-                { month: "Şubat", tufe_monthly: 4.53, tufe_yearly: 67.07, ufe_monthly: 3.74, ufe_yearly: 47.29 },
-                { month: "Mart", tufe_monthly: 3.16, tufe_yearly: 68.50, ufe_monthly: 3.29, ufe_yearly: 51.47 },
-                { month: "Nisan", tufe_monthly: 3.18, tufe_yearly: 69.80, ufe_monthly: 3.60, ufe_yearly: 55.66 },
-                { month: "Mayıs", tufe_monthly: 3.37, tufe_yearly: 75.45, ufe_monthly: 1.96, ufe_yearly: 57.68 },
-                { month: "Haziran", tufe_monthly: 1.64, tufe_yearly: 71.60, ufe_monthly: 1.38, ufe_yearly: 50.09 },
-                { month: "Temmuz", tufe_monthly: 3.23, tufe_yearly: 61.78, ufe_monthly: 1.94, ufe_yearly: 41.37 },
-                { month: "Ağustos", tufe_monthly: 2.47, tufe_yearly: 51.97, ufe_monthly: 1.68, ufe_yearly: 35.75 },
-                { month: "Eylül", tufe_monthly: 2.97, tufe_yearly: 49.38, ufe_monthly: 1.37, ufe_yearly: 33.09 },
-                { month: "Ekim", tufe_monthly: 2.88, tufe_yearly: 48.58, ufe_monthly: 1.29, ufe_yearly: 32.24 },
-                { month: "Kasım", tufe_monthly: 2.24, tufe_yearly: 47.09, ufe_monthly: 0.66, ufe_yearly: 29.47 },
-                { month: "Aralık", tufe_monthly: 1.03, tufe_yearly: 44.38, ufe_monthly: 0.40, ufe_yearly: 28.52 }
-            ];
+        function generateInflationTable() {
+            const months = ['Ocak', 'Şubat', 'Mart', 'Nisan', 'Mayıs', 'Haziran', 'Temmuz', 'Ağustos', 'Eylül', 'Ekim', 'Kasım', 'Aralık'];
+            let tableHtml = '';
             
-            // Tabloyu temizle
-            inflationDataBody.innerHTML = '';
-            
-            // Tabloyu doldur ve düzenlenebilir yap
-            ocrData.forEach(row => {
-                const tr = document.createElement('tr');
-                tr.innerHTML = `
-                    <td class="px-4 py-3 whitespace-nowrap text-sm text-gray-900 font-medium">${row.month}</td>
-                    <td class="px-4 py-3 whitespace-nowrap text-sm">
-                        <input type="number" step="0.01" class="border-gray-300 rounded-md shadow-sm focus:border-yellow-500 focus:ring focus:ring-yellow-200 focus:ring-opacity-50 w-24" 
-                            value="${row.tufe_monthly}" data-field="tufe_monthly" data-month="${row.month}">
+            months.forEach(month => {
+                tableHtml += `
+                <tr>
+                    <td class="px-3 py-2 whitespace-nowrap">${month}</td>
+                    <td class="px-3 py-2">
+                        <input type="number" step="0.01" data-field="tufe_monthly" data-month="${month}" 
+                            class="w-full border-gray-300 rounded-md shadow-sm focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm">
                     </td>
-                    <td class="px-4 py-3 whitespace-nowrap text-sm">
-                        <input type="number" step="0.01" class="border-gray-300 rounded-md shadow-sm focus:border-yellow-500 focus:ring focus:ring-yellow-200 focus:ring-opacity-50 w-24" 
-                            value="${row.tufe_yearly}" data-field="tufe_yearly" data-month="${row.month}">
+                    <td class="px-3 py-2">
+                        <input type="number" step="0.01" data-field="tufe_yearly" data-month="${month}" 
+                            class="w-full border-gray-300 rounded-md shadow-sm focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm">
                     </td>
-                    <td class="px-4 py-3 whitespace-nowrap text-sm">
-                        <input type="number" step="0.01" class="border-gray-300 rounded-md shadow-sm focus:border-yellow-500 focus:ring focus:ring-yellow-200 focus:ring-opacity-50 w-24" 
-                            value="${row.ufe_monthly}" data-field="ufe_monthly" data-month="${row.month}">
+                    <td class="px-3 py-2">
+                        <input type="number" step="0.01" data-field="ufe_monthly" data-month="${month}" 
+                            class="w-full border-gray-300 rounded-md shadow-sm focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm">
                     </td>
-                    <td class="px-4 py-3 whitespace-nowrap text-sm">
-                        <input type="number" step="0.01" class="border-gray-300 rounded-md shadow-sm focus:border-yellow-500 focus:ring focus:ring-yellow-200 focus:ring-opacity-50 w-24" 
-                            value="${row.ufe_yearly}" data-field="ufe_yearly" data-month="${row.month}">
+                    <td class="px-3 py-2">
+                        <input type="number" step="0.01" data-field="ufe_yearly" data-month="${month}" 
+                            class="w-full border-gray-300 rounded-md shadow-sm focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm">
                     </td>
+                </tr>
                 `;
-                inflationDataBody.appendChild(tr);
             });
             
-            // İşlem tamamlandı, normal duruma dön
-            resetProcessButton();
+            inflationDataBody.innerHTML = tableHtml;
             
-            // OCR sonuçlarını göster
-            ocrForm.classList.add('hidden');
-            ocrResults.classList.remove('hidden');
-            
-            // Verileri JSON olarak hazırla
-            updateJsonData();
-        }, 1500);
-    });
-    
-    // İşlem bildirimini göster
-    function showProcessingFeedback() {
-        processImageBtn.disabled = true;
-        processImageBtn.classList.remove('bg-yellow-600', 'hover:bg-yellow-700');
-        processImageBtn.classList.add('bg-gray-400', 'cursor-wait');
-        processImageBtn.innerHTML = `
-            <svg class="animate-spin h-5 w-5 mr-2 -ml-1" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
-                <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
-                <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-            </svg>
-            Veriler Çıkarılıyor...
-        `;
-    }
-    
-    // İşlem butonunu normal haline döndür
-    function resetProcessButton() {
-        processImageBtn.disabled = false;
-        processImageBtn.classList.remove('bg-gray-400', 'cursor-wait');
-        processImageBtn.classList.add('bg-yellow-600', 'hover:bg-yellow-700');
-        processImageBtn.innerHTML = `
-            <svg class="w-5 h-5 mr-2 -ml-1" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
-                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M9 19l3 3m0 0l3-3m-3 3V10"></path>
-            </svg>
-            Resmi İşle ve Verileri Çıkar
-        `;
-    }
-    
-    // Geri dön butonu
-    backToUploadBtn?.addEventListener('click', function() {
-        ocrResults.classList.add('hidden');
-        ocrForm.classList.remove('hidden');
-    });
-    
-    // Excel indirme butonu
-    downloadExcelBtn?.addEventListener('click', function() {
-        // Excel oluşturup indirme işlemi burada yapılacak
-        alert('Excel indirilecek. Bu özellik henüz geliştirme aşamasındadır.');
-    });
-    
-    // Veri değişikliklerini izle ve JSON'ı güncelle
-    if (inflationDataBody) {
-        inflationDataBody.addEventListener('change', function(e) {
-            if (e.target.tagName === 'INPUT') {
-                updateJsonData();
-            }
-        });
-    }
-    
-    // JSON verisini güncelleme fonksiyonu
-    function updateJsonData() {
-        if (!inflationDataJson) return;
-        
-        const year = document.getElementById('inflation_year')?.value || new Date().getFullYear();
-        const rows = inflationDataBody.querySelectorAll('tr');
-        const data = [];
-        
-        rows.forEach(row => {
-            const month = row.querySelector('td:first-child').textContent;
-            const inputs = row.querySelectorAll('input');
-            
-            const monthObj = {
-                month: month,
-                tufe_monthly: parseFloat(inputs[0].value),
-                tufe_yearly: parseFloat(inputs[1].value),
-                ufe_monthly: parseFloat(inputs[2].value),
-                ufe_yearly: parseFloat(inputs[3].value),
-                year: parseInt(year)
-            };
-            
-            data.push(monthObj);
-        });
-        
-        inflationDataJson.value = JSON.stringify(data);
-    }
-
-    // Dosya yükleme işlemleri için event listener'ları
-    const setupFileInput = (inputId, nameElementId, previewContainerId = null, previewImgId = null, placeholderId = null) => {
-        const input = document.getElementById(inputId);
-        const nameElement = document.getElementById(nameElementId);
-        
-        if (input && nameElement) {
-            input.addEventListener('change', function() {
-                if (this.files && this.files.length > 0) {
-                    // Dosya adını göster
-                    nameElement.textContent = `Seçilen dosya: ${this.files[0].name}`;
-                    nameElement.classList.remove('hidden');
-                    
-                    // Eğer görüntü önizleme varsa
-                    if (previewContainerId && previewImgId && placeholderId) {
-                        const previewContainer = document.getElementById(previewContainerId);
-                        const previewImg = document.getElementById(previewImgId);
-                        const placeholder = document.getElementById(placeholderId);
-                        
-                        // Resim ön izleme
-                        const file = this.files[0];
-                        if (file && file.type.startsWith('image/')) {
-                            const reader = new FileReader();
-                            reader.onload = function(e) {
-                                previewImg.src = e.target.result;
-                                placeholder.classList.add('hidden');
-                                previewContainer.classList.remove('hidden');
-                                previewContainer.classList.add('flex');
-                            }
-                            reader.readAsDataURL(file);
-                        }
-                    }
-                } else {
-                    nameElement.textContent = '';
-                    nameElement.classList.add('hidden');
-                    
-                    // Eğer görüntü önizleme varsa
-                    if (previewContainerId && previewImgId && placeholderId) {
-                        const previewContainer = document.getElementById(previewContainerId);
-                        const placeholder = document.getElementById(placeholderId);
-                        
-                        previewContainer.classList.add('hidden');
-                        previewContainer.classList.remove('flex');
-                        placeholder.classList.remove('hidden');
-                    }
-                }
+            // Input değişikliklerini dinle
+            const inputs = inflationDataBody.querySelectorAll('input');
+            inputs.forEach(input => {
+                input.addEventListener('input', function() {
+                    updateInflationJsonData();
+                });
             });
+            
+            // JSON veriyi güncelle
+            updateInflationJsonData();
         }
-    };
-
-    // Enflasyon resim yükleme alanını ayarla
-    setupFileInput(
-        'inflation_image', 
-        'inflation-image-name',
-        'image-preview-container',
-        'image-preview',
-        'inflation-image-placeholder'
-    );
-    
-    // Diğer dosya yükleme alanlarını ayarla
-    setupFileInput('inflation_file', 'inflation-file-name');
-    setupFileInput('interest_file', 'interest-file-name');
-    setupFileInput('exchange_file', 'exchange-file-name');
-    setupFileInput('gdp_file', 'gdp-file-name');
-    setupFileInput('unemployment_file', 'unemployment-file-name');
-
-    // Sürükle-bırak işlemlerini ayarla
-    const dropAreas = document.querySelectorAll('.border-dashed');
-    dropAreas.forEach(area => {
-        area.addEventListener('dragover', function(e) {
-            e.preventDefault();
-            this.classList.add('border-yellow-500', 'bg-yellow-50');
-        });
         
-        area.addEventListener('dragleave', function(e) {
-            e.preventDefault();
-            this.classList.remove('border-yellow-500', 'bg-yellow-50');
-        });
-        
-        area.addEventListener('drop', function(e) {
-            e.preventDefault();
-            this.classList.remove('border-yellow-500', 'bg-yellow-50');
+        function updateInflationJsonData() {
+            const year = inflationYear.value;
+            const data = [];
             
-            // İlgili input elementini bul
-            const input = this.querySelector('input[type="file"]');
-            if (input && e.dataTransfer.files.length > 0) {
-                const file = e.dataTransfer.files[0];
-                const acceptAttr = input.getAttribute('accept');
+            // Tablodan değerleri al
+            const rows = inflationDataBody.querySelectorAll('tr');
+            rows.forEach(row => {
+                const month = row.querySelector('td:first-child').textContent;
+                const tufe_monthly = parseFloat(row.querySelector('input[data-field="tufe_monthly"]').value) || 0;
+                const tufe_yearly = parseFloat(row.querySelector('input[data-field="tufe_yearly"]').value) || 0;
+                const ufe_monthly = parseFloat(row.querySelector('input[data-field="ufe_monthly"]').value) || 0;
+                const ufe_yearly = parseFloat(row.querySelector('input[data-field="ufe_yearly"]').value) || 0;
                 
-                // Dosya tipini kontrol et
-                if (acceptAttr) {
-                    const acceptedTypes = acceptAttr.split(',').map(type => type.trim());
-                    const fileType = file.type;
-                    
-                    if (acceptedTypes.some(type => fileType.match(type))) {
-                        // Dosya tipini input için geçerli, dosyayı ata
-                        const dataTransfer = new DataTransfer();
-                        dataTransfer.items.add(file);
-                        input.files = dataTransfer.files;
-                        
-                        // Change event'ını tetikle
-                        const event = new Event('change', { bubbles: true });
-                        input.dispatchEvent(event);
-                    } else {
-                        alert('Desteklenmeyen dosya formatı. Lütfen geçerli bir dosya seçin.');
-                    }
-                }
+                data.push({
+                    month: month,
+                    year: parseInt(year),
+                    tufe_monthly: tufe_monthly,
+                    tufe_yearly: tufe_yearly,
+                    ufe_monthly: ufe_monthly,
+                    ufe_yearly: ufe_yearly
+                });
+            });
+            
+            // JSON olarak hidden input'a yerleştir
+            inflationDataJson.value = JSON.stringify(data);
+        }
+    }
+    
+    // Dosya isimlerini gösterme
+    const inflationFileInput = document.getElementById('inflation_file');
+    const inflationFileName = document.getElementById('inflation-file-name');
+    
+    const interestFileInput = document.getElementById('interest_file');
+    const interestFileName = document.getElementById('interest-file-name');
+    
+    const policyRateFileInput = document.getElementById('policy_rate_file');
+    const policyRateFileName = document.getElementById('policy-rate-file-name');
+    
+    const bondYieldFileInput = document.getElementById('bond_yield_file');
+    const bondYieldFileName = document.getElementById('bond-yield-file-name');
+    
+    // Inflation file
+    if (inflationFileInput && inflationFileName) {
+        inflationFileInput.addEventListener('change', function() {
+            if (this.files.length > 0) {
+                inflationFileName.textContent = 'Seçilen dosya: ' + this.files[0].name;
+                inflationFileName.classList.remove('hidden');
+            } else {
+                inflationFileName.textContent = '';
+                inflationFileName.classList.add('hidden');
             }
         });
-    });
+    }
+    
+    // Interest combined file
+    if (interestFileInput && interestFileName) {
+        interestFileInput.addEventListener('change', function() {
+            if (this.files.length > 0) {
+                interestFileName.textContent = 'Seçilen dosya: ' + this.files[0].name;
+                interestFileName.classList.remove('hidden');
+            } else {
+                interestFileName.textContent = '';
+                interestFileName.classList.add('hidden');
+            }
+        });
+    }
+    
+    // Policy rate file
+    if (policyRateFileInput && policyRateFileName) {
+        policyRateFileInput.addEventListener('change', function() {
+            if (this.files.length > 0) {
+                policyRateFileName.textContent = 'Seçilen dosya: ' + this.files[0].name;
+                policyRateFileName.classList.remove('hidden');
+            } else {
+                policyRateFileName.textContent = '';
+                policyRateFileName.classList.add('hidden');
+            }
+        });
+    }
+    
+    // Bond yield file
+    if (bondYieldFileInput && bondYieldFileName) {
+        bondYieldFileInput.addEventListener('change', function() {
+            if (this.files.length > 0) {
+                bondYieldFileName.textContent = 'Seçilen dosya: ' + this.files[0].name;
+                bondYieldFileName.classList.remove('hidden');
+            } else {
+                bondYieldFileName.textContent = '';
+                bondYieldFileName.classList.add('hidden');
+            }
+        });
+    }
 });
 </script>
 {% endblock %} 

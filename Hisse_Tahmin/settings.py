@@ -11,6 +11,11 @@ https://docs.djangoproject.com/en/5.1/ref/settings/
 """
 
 from pathlib import Path
+import os
+from dotenv import load_dotenv
+
+# Load environment variables from .env file
+load_dotenv()
 
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
 BASE_DIR = Path(__file__).resolve().parent.parent
@@ -20,12 +25,12 @@ BASE_DIR = Path(__file__).resolve().parent.parent
 # See https://docs.djangoproject.com/en/5.1/howto/deployment/checklist/
 
 # SECURITY WARNING: keep the secret key used in production secret!
-SECRET_KEY = "django-insecure-37tlg76$bjm)fwaz(&kbx68yn=6oc^3(li)8@vaqphifcu_2r&"
+SECRET_KEY = os.getenv('DJANGO_SECRET_KEY', 'django-insecure-37tlg76$bjm)fwaz(&kbx68yn=6oc^3(li)8@vaqphifcu_2r&')
 
 # SECURITY WARNING: don't run with debug turned on in production!
-DEBUG = True
+DEBUG = os.getenv('DJANGO_DEBUG', 'False') == 'True'
 
-ALLOWED_HOSTS = []
+ALLOWED_HOSTS = os.getenv('DJANGO_ALLOWED_HOSTS', 'localhost,127.0.0.1').split(',')
 
 
 # Application definition
@@ -77,11 +82,11 @@ WSGI_APPLICATION = "Hisse_Tahmin.wsgi.application"
 DATABASES = {
     "default": {
         "ENGINE": "django.db.backends.postgresql",
-        "NAME": "hisse_tahmin",
-        "USER": "postgres",
-        "PASSWORD": "Erdal0608*",
-        "HOST": "localhost",
-        "PORT": "5432",
+        "NAME": os.getenv('DB_NAME', 'hisse_tahmin'),
+        "USER": os.getenv('DB_USER', 'postgres'),
+        "PASSWORD": os.getenv('DB_PASSWORD', ''),
+        "HOST": os.getenv('DB_HOST', 'localhost'),
+        "PORT": os.getenv('DB_PORT', '5432'),
     }
 }
 
@@ -140,5 +145,51 @@ LOGOUT_REDIRECT_URL = 'home'
 # Session settings
 SESSION_COOKIE_AGE = 1209600  # 2 weeks in seconds
 SESSION_SAVE_EVERY_REQUEST = True
-SESSION_COOKIE_SECURE = False  # Set to True in production with HTTPS
+SESSION_COOKIE_SECURE = os.getenv('DJANGO_COOKIE_SECURE', 'True') == 'True'  # Set to True in production with HTTPS
 SESSION_COOKIE_HTTPONLY = True
+
+# Logging settings
+LOGGING = {
+    'version': 1,
+    'disable_existing_loggers': False,
+    'formatters': {
+        'verbose': {
+            'format': '{levelname} {asctime} {module} {process:d} {thread:d} {message}',
+            'style': '{',
+        },
+        'simple': {
+            'format': '{levelname} {message}',
+            'style': '{',
+        },
+    },
+    'handlers': {
+        'console': {
+            'level': 'DEBUG',
+            'class': 'logging.StreamHandler',
+            'formatter': 'verbose',
+        },
+        'file': {
+            'level': 'DEBUG',
+            'class': 'logging.FileHandler',
+            'filename': BASE_DIR / 'debug.log',
+            'formatter': 'verbose',
+        },
+    },
+    'loggers': {
+        '': {
+            'handlers': ['console', 'file'],
+            'level': 'DEBUG',
+            'propagate': True,
+        },
+        'django': {
+            'handlers': ['console', 'file'],
+            'level': 'INFO',
+            'propagate': False,
+        },
+        'Tahmin': {
+            'handlers': ['console', 'file'],
+            'level': 'DEBUG',
+            'propagate': False,
+        },
+    },
+}

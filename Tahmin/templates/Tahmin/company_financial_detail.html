@@ -1,0 +1,226 @@
+{% extends 'Tahmin/admin_base.html' %}
+
+{% block content %}
+<div class="bg-white rounded-lg shadow-lg p-6">
+    <div class="flex justify-between items-center mb-6">
+        <h1 class="text-2xl font-bold text-gray-800">{{ financial.stock.symbol }} - {{ financial.get_period_display }} {{ financial.year }} Finansal Analizi</h1>
+        <a href="{% url 'import_company_financial' %}" class="px-4 py-2 bg-gray-200 text-gray-700 rounded-lg hover:bg-gray-300 transition-colors">
+            <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 inline-block mr-1" viewBox="0 0 20 20" fill="currentColor">
+                <path fill-rule="evenodd" d="M9.707 14.707a1 1 0 01-1.414 0l-4-4a1 1 0 010-1.414l4-4a1 1 0 011.414 1.414L7.414 9H15a1 1 0 110 2H7.414l2.293 2.293a1 1 0 010 1.414z" clip-rule="evenodd" />
+            </svg>
+            Geri
+        </a>
+    </div>
+
+    <!-- Hisse Detayları -->
+    <div class="bg-blue-50 p-4 rounded-lg mb-6 border border-blue-100">
+        <div class="grid grid-cols-2 md:grid-cols-4 gap-4">
+            <div>
+                <h3 class="text-sm font-medium text-gray-500">Hisse Adı</h3>
+                <p class="text-lg font-bold text-blue-800">{{ financial.stock.name }}</p>
+            </div>
+            <div>
+                <h3 class="text-sm font-medium text-gray-500">Sektör</h3>
+                <p class="text-lg font-bold text-blue-800">{{ financial.stock.sector|default:"Belirtilmemiş" }}</p>
+            </div>
+            <div>
+                <h3 class="text-sm font-medium text-gray-500">Dönem</h3>
+                <p class="text-lg font-bold text-blue-800">{{ financial.get_period_display }}</p>
+            </div>
+            <div>
+                <h3 class="text-sm font-medium text-gray-500">Yıl</h3>
+                <p class="text-lg font-bold text-blue-800">{{ financial.year }}</p>
+            </div>
+        </div>
+    </div>
+
+    <!-- Ana Finansal Veriler -->
+    <div class="mb-8">
+        <h2 class="text-xl font-semibold mb-4 text-gray-800">Temel Finansal Veriler</h2>
+        <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+            <!-- Gelir Tablosu -->
+            <div class="bg-white rounded-lg shadow p-4 border border-gray-200">
+                <h3 class="text-lg font-medium text-indigo-900 mb-3">Gelir Tablosu</h3>
+                <div class="space-y-2">
+                    <div class="flex justify-between items-center">
+                        <span class="text-gray-700">Satış Geliri</span>
+                        <span class="font-bold text-gray-900">{{ financial.revenue|default:"-" }} TL</span>
+                    </div>
+                    <div class="flex justify-between items-center">
+                        <span class="text-gray-700">FAVÖK</span>
+                        <span class="font-bold text-gray-900">{{ financial.ebitda|default:"-" }} TL</span>
+                    </div>
+                    <div class="flex justify-between items-center">
+                        <span class="text-gray-700">Net Kar</span>
+                        <span class="font-bold text-gray-900">{{ financial.net_income|default:"-" }} TL</span>
+                    </div>
+                    {% if extra_data.net_profit_margin %}
+                    <div class="flex justify-between items-center">
+                        <span class="text-gray-700">Net Kar Marjı</span>
+                        <span class="font-bold text-gray-900">{{ extra_data.net_profit_margin }}%</span>
+                    </div>
+                    {% endif %}
+                    {% if extra_data.ebitda_margin %}
+                    <div class="flex justify-between items-center">
+                        <span class="text-gray-700">FAVÖK Marjı</span>
+                        <span class="font-bold text-gray-900">{{ extra_data.ebitda_margin }}%</span>
+                    </div>
+                    {% endif %}
+                </div>
+            </div>
+
+            <!-- Bilanço Verileri -->
+            <div class="bg-white rounded-lg shadow p-4 border border-gray-200">
+                <h3 class="text-lg font-medium text-indigo-900 mb-3">Bilanço</h3>
+                <div class="space-y-2">
+                    <div class="flex justify-between items-center">
+                        <span class="text-gray-700">Toplam Varlıklar</span>
+                        <span class="font-bold text-gray-900">{{ financial.total_assets|default:"-" }} TL</span>
+                    </div>
+                    <div class="flex justify-between items-center">
+                        <span class="text-gray-700">Toplam Borçlar</span>
+                        <span class="font-bold text-gray-900">{{ financial.total_liabilities|default:"-" }} TL</span>
+                    </div>
+                    <div class="flex justify-between items-center">
+                        <span class="text-gray-700">Özkaynaklar</span>
+                        <span class="font-bold text-gray-900">{{ financial.equity|default:"-" }} TL</span>
+                    </div>
+                    <div class="flex justify-between items-center">
+                        <span class="text-gray-700">Borç/Özkaynak</span>
+                        <span class="font-bold text-gray-900">{{ financial.debt_to_equity|default:"-" }}</span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Finansal Oranlar -->
+            <div class="bg-white rounded-lg shadow p-4 border border-gray-200">
+                <h3 class="text-lg font-medium text-indigo-900 mb-3">Finansal Oranlar</h3>
+                <div class="space-y-2">
+                    <div class="flex justify-between items-center">
+                        <span class="text-gray-700">ROE</span>
+                        <span class="font-bold text-gray-900">{{ financial.roe|default:"-" }}%</span>
+                    </div>
+                    <div class="flex justify-between items-center">
+                        <span class="text-gray-700">Hisse Başı Kazanç</span>
+                        <span class="font-bold text-gray-900">{{ financial.eps|default:"-" }} TL</span>
+                    </div>
+                    <div class="flex justify-between items-center">
+                        <span class="text-gray-700">F/K Oranı</span>
+                        <span class="font-bold text-gray-900">{{ financial.pe_ratio|default:"-" }}</span>
+                    </div>
+                    <div class="flex justify-between items-center">
+                        <span class="text-gray-700">PD/DD</span>
+                        <span class="font-bold text-gray-900">{{ financial.pb_ratio|default:"-" }}</span>
+                    </div>
+                    <div class="flex justify-between items-center">
+                        <span class="text-gray-700">FD/FAVÖK</span>
+                        <span class="font-bold text-gray-900">{{ financial.ev_ebitda|default:"-" }}</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Büyüme ve Trend Analizi -->
+    {% if extra_data.revenue_growth or extra_data.net_income_growth or extra_data.ebitda_growth %}
+    <div class="mb-8">
+        <h2 class="text-xl font-semibold mb-4 text-gray-800">Büyüme ve Trend Analizi</h2>
+        <div class="bg-white rounded-lg shadow p-4 border border-gray-200">
+            <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+                {% if extra_data.revenue_growth %}
+                <div class="text-center p-4 {% if extra_data.revenue_growth > 0 %}bg-green-50{% else %}bg-red-50{% endif %} rounded-lg">
+                    <h3 class="text-lg font-medium mb-2">Satış Geliri Büyümesi</h3>
+                    <p class="text-3xl font-bold {% if extra_data.revenue_growth > 0 %}text-green-600{% else %}text-red-600{% endif %}">
+                        {{ extra_data.revenue_growth }}%
+                    </p>
+                </div>
+                {% endif %}
+                
+                {% if extra_data.net_income_growth %}
+                <div class="text-center p-4 {% if extra_data.net_income_growth > 0 %}bg-green-50{% else %}bg-red-50{% endif %} rounded-lg">
+                    <h3 class="text-lg font-medium mb-2">Net Kar Büyümesi</h3>
+                    <p class="text-3xl font-bold {% if extra_data.net_income_growth > 0 %}text-green-600{% else %}text-red-600{% endif %}">
+                        {{ extra_data.net_income_growth }}%
+                    </p>
+                </div>
+                {% endif %}
+                
+                {% if extra_data.ebitda_growth %}
+                <div class="text-center p-4 {% if extra_data.ebitda_growth > 0 %}bg-green-50{% else %}bg-red-50{% endif %} rounded-lg">
+                    <h3 class="text-lg font-medium mb-2">FAVÖK Büyümesi</h3>
+                    <p class="text-3xl font-bold {% if extra_data.ebitda_growth > 0 %}text-green-600{% else %}text-red-600{% endif %}">
+                        {{ extra_data.ebitda_growth }}%
+                    </p>
+                </div>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+    {% endif %}
+
+    <!-- Değerleme Yorumları -->
+    {% if extra_data.pe_ratio_comment or extra_data.debt_to_equity_comment %}
+    <div class="mb-8">
+        <h2 class="text-xl font-semibold mb-4 text-gray-800">Değerleme Yorumları</h2>
+        <div class="bg-white rounded-lg shadow p-4 border border-gray-200">
+            <ul class="space-y-3">
+                {% if extra_data.pe_ratio_comment %}
+                <li class="flex items-start">
+                    <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 text-indigo-600 mr-2 mt-0.5" viewBox="0 0 20 20" fill="currentColor">
+                        <path fill-rule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a1 1 0 000 2v3a1 1 0 001 1h1a1 1 0 100-2h-1V9z" clip-rule="evenodd" />
+                    </svg>
+                    <span class="text-gray-800">F/K Oranı: {{ extra_data.pe_ratio_comment }}</span>
+                </li>
+                {% endif %}
+                
+                {% if extra_data.debt_to_equity_comment %}
+                <li class="flex items-start">
+                    <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 text-indigo-600 mr-2 mt-0.5" viewBox="0 0 20 20" fill="currentColor">
+                        <path fill-rule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a1 1 0 000 2v3a1 1 0 001 1h1a1 1 0 100-2h-1V9z" clip-rule="evenodd" />
+                    </svg>
+                    <span class="text-gray-800">Borç/Özkaynak Oranı: {{ extra_data.debt_to_equity_comment }}</span>
+                </li>
+                {% endif %}
+            </ul>
+        </div>
+    </div>
+    {% endif %}
+
+    <!-- Özet Görünüm -->
+    <div class="mb-8">
+        <h2 class="text-xl font-semibold mb-4 text-gray-800">Finansal Performans Özeti</h2>
+        <div class="bg-white rounded-lg shadow p-6 border border-gray-200">
+            <div class="prose max-w-none">
+                <p class="text-gray-700">{{ financial.stock.name }} şirketinin {{ financial.year }} yılı {{ financial.get_period_display }} dönemi finansal verileri analiz edilmiştir.</p>
+                
+                {% if financial.revenue %}
+                <p class="text-gray-700">Şirket bu dönemde <strong>{{ financial.revenue }} TL</strong> satış geliri elde etmiştir. 
+                {% if extra_data.revenue_growth %}
+                Bu, önceki döneme göre <strong class="{% if extra_data.revenue_growth > 0 %}text-green-600{% else %}text-red-600{% endif %}">{{ extra_data.revenue_growth }}%</strong> değişim göstermiştir.
+                {% endif %}
+                </p>
+                {% endif %}
+                
+                {% if financial.net_income %}
+                <p class="text-gray-700">Net kar <strong>{{ financial.net_income }} TL</strong> olarak gerçekleşmiş ve 
+                {% if extra_data.net_profit_margin %}
+                şirket <strong>{{ extra_data.net_profit_margin }}%</strong> net kar marjı elde etmiştir.
+                {% endif %}
+                {% if extra_data.net_income_growth %}
+                Önceki döneme göre net kar <strong class="{% if extra_data.net_income_growth > 0 %}text-green-600{% else %}text-red-600{% endif %}">{{ extra_data.net_income_growth }}%</strong> değişim göstermiştir.
+                {% endif %}
+                </p>
+                {% endif %}
+                
+                {% if financial.debt_to_equity and extra_data.debt_to_equity_comment %}
+                <p class="text-gray-700"><strong>{{ extra_data.debt_to_equity_comment }}</strong></p>
+                {% endif %}
+                
+                {% if financial.pe_ratio and extra_data.pe_ratio_comment %}
+                <p class="text-gray-700"><strong>{{ extra_data.pe_ratio_comment }}</strong></p>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %} 

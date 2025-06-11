@@ -238,6 +238,24 @@ class InflationData(models.Model):
         ordering = ['-year', 'month']
         unique_together = ['month', 'year']
 
+# Faiz oranları verileri
+class InterestRate(models.Model):
+    date = models.DateField(verbose_name="Tarih")
+    policy_rate = models.DecimalField(max_digits=6, decimal_places=2, null=True, blank=True, verbose_name="TCMB Politika Faizi (%)")
+    bond_yield_2y = models.DecimalField(max_digits=6, decimal_places=2, null=True, blank=True, verbose_name="2 Yıllık Tahvil Faizi (%)")
+    bond_yield_10y = models.DecimalField(max_digits=6, decimal_places=2, null=True, blank=True, verbose_name="10 Yıllık Tahvil Faizi (%)")
+    created_at = models.DateTimeField(auto_now_add=True, verbose_name="Oluşturulma Tarihi")
+    updated_at = models.DateTimeField(auto_now=True, verbose_name="Güncellenme Tarihi")
+    
+    def __str__(self):
+        return f"Faiz Oranları - {self.date}"
+    
+    class Meta:
+        verbose_name = "Faiz Oranı"
+        verbose_name_plural = "Faiz Oranları"
+        ordering = ['-date']
+        get_latest_by = "date"
+
 # Sektör endeksleri
 class SectorIndex(models.Model):
     sector = models.ForeignKey(Sector, on_delete=models.CASCADE, related_name='indices', verbose_name="Sektör")
@@ -295,6 +313,13 @@ class CompanyFinancial(models.Model):
     pb_ratio = models.DecimalField(max_digits=10, decimal_places=2, null=True, blank=True, verbose_name="PD/DD")
     ev_ebitda = models.DecimalField(max_digits=10, decimal_places=2, null=True, blank=True, verbose_name="FD/FAVÖK")
     
+    # Analiz sonuçları (JSON formatında)
+    extra_data = models.TextField(null=True, blank=True, verbose_name="Analiz Sonuçları (JSON)")
+    
+    # Dosya yolları
+    pdf_path = models.CharField(max_length=255, null=True, blank=True, verbose_name="PDF Dosyası Yolu")
+    excel_path = models.CharField(max_length=255, null=True, blank=True, verbose_name="Excel Dosyası Yolu")
+    
     # Meta
     created_at = models.DateTimeField(auto_now_add=True, verbose_name="Kayıt Tarihi")
     updated_at = models.DateTimeField(auto_now=True, verbose_name="Güncelleme Tarihi")
@@ -344,9 +369,179 @@ class SentimentData(models.Model):
     created_at = models.DateTimeField(auto_now_add=True, verbose_name="Kayıt Tarihi")
     
     def __str__(self):
-        return f"{self.stock.symbol} - {self.date} Duygu Analizi"
+        return f"{self.stock.symbol} - {self.date} - {self.get_sentiment_label_display()}"
     
     class Meta:
         verbose_name = "Duygu Analizi"
         verbose_name_plural = "Duygu Analizleri"
         ordering = ['-date']
+
+# Döviz Kurları
+class ExchangeRate(models.Model):
+    CURRENCY_CHOICES = [
+        ('USD', 'Amerikan Doları'),
+        ('EUR', 'Euro'),
+    ]
+    
+    date = models.DateField(verbose_name="Tarih")
+    currency = models.CharField(max_length=3, choices=CURRENCY_CHOICES, verbose_name="Para Birimi")
+    
+    # Kur verileri
+    open_price = models.DecimalField(max_digits=10, decimal_places=4, verbose_name="Açılış")
+    high_price = models.DecimalField(max_digits=10, decimal_places=4, verbose_name="En Yüksek")
+    low_price = models.DecimalField(max_digits=10, decimal_places=4, verbose_name="En Düşük")
+    close_price = models.DecimalField(max_digits=10, decimal_places=4, verbose_name="Kapanış")
+    volume = models.CharField(max_length=20, null=True, blank=True, verbose_name="Hacim")
+    change_percent = models.DecimalField(max_digits=6, decimal_places=2, null=True, blank=True, verbose_name="Değişim (%)")
+    
+    # Meta
+    created_at = models.DateTimeField(auto_now_add=True, verbose_name="Oluşturulma Tarihi")
+    updated_at = models.DateTimeField(auto_now=True, verbose_name="Güncellenme Tarihi")
+    
+    def __str__(self):
+        return f"{self.currency}/TRY - {self.date}"
+    
+    class Meta:
+        verbose_name = "Döviz Kuru"
+        verbose_name_plural = "Döviz Kurları"
+        ordering = ['-date', 'currency']
+        unique_together = ['date', 'currency']
+
+# Sektörel Endeks Verileri
+class SectoralIndexData(models.Model):
+    date = models.DateField(verbose_name="Tarih")
+    sector = models.ForeignKey(Sector, on_delete=models.CASCADE, related_name='index_data', verbose_name="Sektör")
+    
+    # Endeks verileri
+    open_value = models.DecimalField(max_digits=12, decimal_places=2, verbose_name="Açılış Değeri")
+    high_value = models.DecimalField(max_digits=12, decimal_places=2, verbose_name="En Yüksek Değer")
+    low_value = models.DecimalField(max_digits=12, decimal_places=2, verbose_name="En Düşük Değer")
+    close_value = models.DecimalField(max_digits=12, decimal_places=2, verbose_name="Kapanış Değeri")
+    volume = models.BigIntegerField(null=True, blank=True, verbose_name="İşlem Hacmi")
+    change_percent = models.DecimalField(max_digits=6, decimal_places=2, null=True, blank=True, verbose_name="Değişim (%)")
+    
+    # Meta
+    created_at = models.DateTimeField(auto_now_add=True, verbose_name="Oluşturulma Tarihi")
+    updated_at = models.DateTimeField(auto_now=True, verbose_name="Güncellenme Tarihi")
+    
+    def __str__(self):
+        return f"{self.sector.name} Endeksi - {self.date}"
+    
+    class Meta:
+        verbose_name = "Sektör Endeks Verisi"
+        verbose_name_plural = "Sektör Endeks Verileri"
+        ordering = ['-date', 'sector']
+        unique_together = ['date', 'sector']
+
+# Sektörel Regülasyon Değişiklikleri
+class SectoralRegulation(models.Model):
+    IMPACT_CHOICES = [
+        ('VERY_POSITIVE', 'Çok Olumlu'),
+        ('POSITIVE', 'Olumlu'),
+        ('NEUTRAL', 'Nötr'),
+        ('NEGATIVE', 'Olumsuz'),
+        ('VERY_NEGATIVE', 'Çok Olumsuz'),
+    ]
+    
+    sector = models.ForeignKey(Sector, on_delete=models.CASCADE, related_name='regulations', verbose_name="Sektör")
+    title = models.CharField(max_length=200, verbose_name="Başlık")
+    description = models.TextField(verbose_name="Açıklama")
+    announcement_date = models.DateField(verbose_name="Duyuru Tarihi")
+    effective_date = models.DateField(verbose_name="Yürürlük Tarihi")
+    impact = models.CharField(max_length=15, choices=IMPACT_CHOICES, verbose_name="Etki")
+    source = models.CharField(max_length=200, verbose_name="Kaynak")
+    source_url = models.URLField(null=True, blank=True, verbose_name="Kaynak URL")
+    notes = models.TextField(null=True, blank=True, verbose_name="Notlar")
+    
+    # Meta
+    created_at = models.DateTimeField(auto_now_add=True, verbose_name="Eklenme Tarihi")
+    updated_at = models.DateTimeField(auto_now=True, verbose_name="Güncellenme Tarihi")
+    
+    def __str__(self):
+        return f"{self.sector.name} - {self.title} ({self.announcement_date})"
+    
+    class Meta:
+        verbose_name = "Sektörel Regülasyon"
+        verbose_name_plural = "Sektörel Regülasyonlar"
+        ordering = ['-announcement_date', 'sector']
+
+# Sektörel Büyüme Verileri
+class SectoralGrowth(models.Model):
+    PERIOD_CHOICES = [
+        ('Q1', '1. Çeyrek'),
+        ('Q2', '2. Çeyrek'),
+        ('Q3', '3. Çeyrek'),
+        ('Q4', '4. Çeyrek'),
+        ('ANNUAL', 'Yıllık'),
+    ]
+    
+    sector = models.ForeignKey(Sector, on_delete=models.CASCADE, related_name='growth_data', verbose_name="Sektör")
+    year = models.IntegerField(verbose_name="Yıl")
+    period = models.CharField(max_length=10, choices=PERIOD_CHOICES, verbose_name="Dönem")
+    growth_rate = models.DecimalField(max_digits=6, decimal_places=2, verbose_name="Büyüme Oranı (%)")
+    volume = models.BigIntegerField(null=True, blank=True, verbose_name="Hacim (TL)")
+    employment_change = models.DecimalField(max_digits=6, decimal_places=2, null=True, blank=True, verbose_name="İstihdam Değişimi (%)")
+    export_growth = models.DecimalField(max_digits=6, decimal_places=2, null=True, blank=True, verbose_name="İhracat Büyümesi (%)")
+    investment_growth = models.DecimalField(max_digits=6, decimal_places=2, null=True, blank=True, verbose_name="Yatırım Büyümesi (%)")
+    source = models.CharField(max_length=200, verbose_name="Veri Kaynağı")
+    notes = models.TextField(null=True, blank=True, verbose_name="Notlar")
+    
+    # Meta
+    created_at = models.DateTimeField(auto_now_add=True, verbose_name="Eklenme Tarihi")
+    updated_at = models.DateTimeField(auto_now=True, verbose_name="Güncellenme Tarihi")
+    
+    def __str__(self):
+        return f"{self.sector.name} - {self.year} {self.period} Büyüme"
+    
+    class Meta:
+        verbose_name = "Sektörel Büyüme Verisi"
+        verbose_name_plural = "Sektörel Büyüme Verileri"
+        ordering = ['-year', '-period', 'sector']
+        unique_together = ['sector', 'year', 'period']
+
+# Sektörel Mevsimsellik Etkileri
+class SeasonalEffect(models.Model):
+    SEASON_CHOICES = [
+        ('WINTER', 'Kış'),
+        ('SPRING', 'İlkbahar'),
+        ('SUMMER', 'Yaz'),
+        ('AUTUMN', 'Sonbahar'),
+        ('QUARTER_1', '1. Çeyrek'),
+        ('QUARTER_2', '2. Çeyrek'),
+        ('QUARTER_3', '3. Çeyrek'),
+        ('QUARTER_4', '4. Çeyrek'),
+        ('RAMADAN', 'Ramazan'),
+        ('EID', 'Bayram'),
+        ('NEW_YEAR', 'Yılbaşı'),
+        ('SUMMER_HOLIDAY', 'Yaz Tatili'),
+        ('OTHER', 'Diğer'),
+    ]
+    
+    EFFECT_CHOICES = [
+        ('VERY_POSITIVE', 'Çok Olumlu'),
+        ('POSITIVE', 'Olumlu'),
+        ('NEUTRAL', 'Nötr'),
+        ('NEGATIVE', 'Olumsuz'),
+        ('VERY_NEGATIVE', 'Çok Olumsuz'),
+    ]
+    
+    sector = models.ForeignKey(Sector, on_delete=models.CASCADE, related_name='seasonal_effects', verbose_name="Sektör")
+    season = models.CharField(max_length=20, choices=SEASON_CHOICES, verbose_name="Mevsim/Dönem")
+    effect = models.CharField(max_length=15, choices=EFFECT_CHOICES, verbose_name="Etki")
+    effect_description = models.TextField(verbose_name="Etki Açıklaması")
+    average_change = models.DecimalField(max_digits=6, decimal_places=2, null=True, blank=True, verbose_name="Ortalama Değişim (%)")
+    historical_data = models.TextField(null=True, blank=True, verbose_name="Tarihsel Veri Özeti")
+    notes = models.TextField(null=True, blank=True, verbose_name="Notlar")
+    
+    # Meta
+    created_at = models.DateTimeField(auto_now_add=True, verbose_name="Eklenme Tarihi")
+    updated_at = models.DateTimeField(auto_now=True, verbose_name="Güncellenme Tarihi")
+    
+    def __str__(self):
+        return f"{self.sector.name} - {self.get_season_display()} ({self.get_effect_display()})"
+    
+    class Meta:
+        verbose_name = "Mevsimsel Etki"
+        verbose_name_plural = "Mevsimsel Etkiler"
+        ordering = ['sector', 'season']
+        unique_together = ['sector', 'season']
