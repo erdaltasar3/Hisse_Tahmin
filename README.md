@@ -1,8 +1,13 @@
 # Hisse Tahmin Projesi 📈
 
+![Proje Banner](docs/banner.png)
+
 Bu proje, Borsa İstanbul'da işlem gören hisse senetlerinin fiyat tahminlerini yapmak için geliştirilmiş kapsamlı bir web uygulamasıdır. Makine öğrenmesi algoritmaları kullanarak, teknik ve temel analiz verilerini birleştirerek tahminler üretir.
 
 ## 🌟 Özellikler
+
+### 📊 Veri Analizi ve Tahmin
+![Veri Analizi](docs/data-analysis.png)
 
 - **Kapsamlı Veri Analizi**
   - Teknik analiz göstergeleri (RSI, MACD, Bollinger Bantları vb.)
@@ -10,15 +15,24 @@ Bu proje, Borsa İstanbul'da işlem gören hisse senetlerinin fiyat tahminlerini
   - Makroekonomik veriler (Enflasyon, faiz oranları, döviz kurları)
   - Sektörel analizler ve regülasyonlar
 
+### 🤖 Tahmin Modeli
+![Tahmin Modeli](docs/prediction-model.png)
+
 - **Gelişmiş Tahmin Modeli**
   - Makine öğrenmesi tabanlı tahmin algoritmaları
   - Çoklu veri kaynağı entegrasyonu
   - Otomatik model güncelleme ve optimizasyon
 
+### 👥 Kullanıcı Arayüzü
+![Dashboard](docs/dashboard.png)
+
 - **Kullanıcı Yönetimi**
   - Güvenli kullanıcı kimlik doğrulama
   - Rol tabanlı yetkilendirme (Admin/Kullanıcı)
   - Kişiselleştirilmiş dashboard
+
+### 📈 Veri Yönetimi
+![Veri Yönetimi](docs/data-management.png)
 
 - **Veri Yönetimi**
   - Excel ve PDF dosyalarından otomatik veri çekme
@@ -26,6 +40,8 @@ Bu proje, Borsa İstanbul'da işlem gören hisse senetlerinin fiyat tahminlerini
   - Detaylı raporlama ve görselleştirme
 
 ## 🛠️ Teknolojiler
+
+![Teknoloji Stack](docs/tech-stack.png)
 
 - **Backend**
   - Django 5.1.7
@@ -44,6 +60,8 @@ Bu proje, Borsa İstanbul'da işlem gören hisse senetlerinin fiyat tahminlerini
   - Bootstrap
 
 ## 🚀 Kurulum
+
+![Kurulum Adımları](docs/installation.png)
 
 1. Projeyi klonlayın:
 ```bash
@@ -91,6 +109,8 @@ python manage.py runserver
 
 ## 📊 Veri Kaynakları
 
+![Veri Kaynakları](docs/data-sources.png)
+
 - Borsa İstanbul (BIST)
 - Türkiye İstatistik Kurumu (TÜİK)
 - Merkez Bankası (TCMB)
@@ -98,12 +118,16 @@ python manage.py runserver
 
 ## 🔒 Güvenlik
 
+![Güvenlik](docs/security.png)
+
 - Hassas bilgiler `.env` dosyasında saklanır
 - Kullanıcı şifreleri güvenli bir şekilde hashlenir
 - CSRF ve XSS koruması
 - Rol tabanlı erişim kontrolü
 
 ## 🤝 Katkıda Bulunma
+
+![Katkıda Bulunma](docs/contribution.png)
 
 1. Bu depoyu fork edin
 2. Yeni bir branch oluşturun (`git checkout -b feature/amazing-feature`)
@@ -116,6 +140,8 @@ python manage.py runserver
 Bu proje MIT lisansı altında lisanslanmıştır. Detaylar için [LICENSE](LICENSE) dosyasına bakın.
 
 ## 📞 İletişim
+
+![İletişim](docs/contact.png)
 
 Proje Sahibi - [@twitter_handle](https://twitter.com/twitter_handle)
 
